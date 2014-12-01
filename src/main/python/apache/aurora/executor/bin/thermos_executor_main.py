@@ -29,7 +29,9 @@ from apache.aurora.executor.aurora_executor import AuroraExecutor
 from apache.aurora.executor.common.announcer import DefaultAnnouncerCheckerProvider
 from apache.aurora.executor.common.executor_timeout import ExecutorTimeout
 from apache.aurora.executor.common.health_checker import HealthCheckerProvider
-from apache.aurora.executor.thermos_task_runner import DefaultThermosTaskRunnerProvider
+from apache.aurora.executor.common.sandbox import DefaultSandboxProvider
+from apache.aurora.executor.thermos_task_runner import (DefaultThermosTaskRunnerProvider,
+                                                        UserOverrideThermosTaskRunnerProvider)
 
 app.configure(debug=True)
 LogOptions.set_simple(True)
@@ -62,6 +64,28 @@ app.add_option(
     help='The root of the tree into which ServerSets should be announced.  The paths will '
          'be of the form $ROOT/$ROLE/$ENVIRONMENT/$JOBNAME.')
 
+app.add_option(
+    '--execute-as-user',
+    dest='execute_as_user',
+    type=str,
+    help='Causes the executor to override the user specificed by aurora.'
+)
+
+app.add_option(
+    '--execute-as-container',
+    dest='execute_as_container',
+    action='store_true',
+    help='If set, the executor will not attempt to change users when running thermos_runner',
+    default=False
+)
+
+app.add_option(
+    '--dockerize',
+    dest='dockerize',
+    action='store_true',
+    help='Informs the executor that it is now running inside a docker container',
+    default=False
+)
 
 # TODO(wickman) Consider just having the OSS version require pip installed
 # thermos_runner binaries on every machine and instead of embedding the pex
@@ -78,13 +102,15 @@ def dump_runner_pex():
   return runner_pex
 
 
+class UserOverrideDirectorySandboxProvider(DefaultSandboxProvider):
+  def __init__(self, user_override):
+    self._user_override = user_override
+
+  def _get_sandbox_user(self, assigned_task):
+    return self._user_override
+
 def proxy_main():
   def main(args, options):
-    thermos_runner_provider = DefaultThermosTaskRunnerProvider(
-        dump_runner_pex(),
-        artifact_dir=os.path.realpath('.'),
-    )
-
     # status providers:
     status_providers = [HealthCheckerProvider()]
 
@@ -95,10 +121,33 @@ def proxy_main():
           options.announcer_ensemble, options.announcer_serverset_path))
 
     # Create executor stub
-    thermos_executor = AuroraExecutor(
-        runner_provider=thermos_runner_provider,
-        status_providers=status_providers,
-    )
+    if options.execute_as_user or options.execute_as_container:
+      thermos_runner_provider = UserOverrideThermosTaskRunnerProvider(
+        dump_runner_pex(),
+        artifact_dir=os.path.realpath('.'),
+        dockerize=options.dockerize
+      )
+      if options.execute_as_user:
+        thermos_runner_provider.set_role(options.execute_as_user)
+      else: # execute_as_container || dockerize
+        thermos_runner_provider.set_role(None)
+
+      thermos_executor = AuroraExecutor(
+          runner_provider=thermos_runner_provider,
+          status_providers=status_providers,
+          sandbox_provider=UserOverrideDirectorySandboxProvider(options.execute_as_user)
+      )
+    else:
+      thermos_runner_provider = DefaultThermosTaskRunnerProvider(
+        dump_runner_pex(),
+        artifact_dir=os.path.realpath('.'),
+        dockerize=options.dockerize
+      )
+
+      thermos_executor = AuroraExecutor(
+          runner_provider=thermos_runner_provider,
+          status_providers=status_providers
+      )
 
     # Create driver stub
     driver = MesosExecutorDriver(thermos_executor)

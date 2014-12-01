@@ -1,0 +1,32 @@
+pkg_path = '/vagrant/hello_world.py'
+
+# we use a trick here to make the configuration change with
+# the contents of the file, for simplicity.  in a normal setting, packages would be
+# versioned, and the version number would be changed in the configuration.
+import hashlib
+with open(pkg_path, 'rb') as f:
+  pkg_checksum = hashlib.md5(f.read()).hexdigest()
+
+# run the script
+hello_world_proc = Process(
+  name = 'hello_world',
+  cmdline = 'python /tmp/hello_docker.py')
+
+hello_world_docker = Task(
+  name = 'hello docker',
+  container = Docker(
+    name = 'hello docker',
+    image = 'hello-docker'),
+  processes = [hello_world_proc],
+  resources = Resources(cpu = 1, ram = 1*MB, disk=8*MB)
+)
+
+jobs = [
+  Service(cluster = 'devcluster',
+          environment = 'devel',
+          role = 'docker-test',
+          name = 'hello_docker',
+          task = hello_world_docker,
+          announce=Announcer()
+)
+]

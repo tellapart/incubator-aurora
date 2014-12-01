@@ -39,6 +39,12 @@ public final class CommandUtil {
     }
   }
 
+  public static CommandInfo create(String executorUri) {
+    CommandInfo.Builder builder = CommandInfo.newBuilder();
+    create(executorUri, "./", builder);
+    return builder.build();
+  }
+
   /**
    * Creates a description of a command that will fetch and execute the given URI to an executor
    * binary.
@@ -46,12 +52,11 @@ public final class CommandUtil {
    * @param executorUri URI to the executor.
    * @return A command that will fetch and execute the executor.
    */
-  public static CommandInfo create(String executorUri) {
+  public static void create(String executorUri, String basePath, CommandInfo.Builder builder) {
     MorePreconditions.checkNotBlank(executorUri);
 
-    return CommandInfo.newBuilder()
+    builder
         .addUris(URI.newBuilder().setValue(executorUri).setExecutable(true))
-        .setValue("./" + uriBasename(executorUri))
-        .build();
+        .setValue(basePath + uriBasename(executorUri));
   }
 }
