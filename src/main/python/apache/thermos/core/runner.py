@@ -418,7 +418,8 @@ class TaskRunner(object):
 
   def __init__(self, task, checkpoint_root, sandbox, log_dir=None,
                task_id=None, portmap=None, user=None, chroot=False, clock=time,
-               universal_handler=None, planner_class=TaskPlanner):
+               universal_handler=None, planner_class=TaskPlanner, host_log_dir=None,
+               host_sandbox=None):
     """
       required:
         task (config.Task) = the task to run
@@ -462,6 +463,7 @@ class TaskRunner(object):
     self._portmap = portmap or {}
     self._launch_time = launch_time
     self._log_dir = log_dir or os.path.join(sandbox, '.logs')
+    self._host_log_dir = host_log_dir or self._log_dir
     self._pathspec = TaskPath(root=checkpoint_root, task_id=self._task_id, log_dir=self._log_dir)
     try:
       ThermosTaskValidator.assert_valid_task(task)
@@ -487,6 +489,7 @@ class TaskRunner(object):
         process_filter=lambda proc: proc.final().get() is True)
     self._chroot = chroot
     self._sandbox = sandbox
+    self._host_sandbox = host_sandbox or self._sandbox
     self._terminal_state = None
     self._ckpt = None
     self._process_map = dict((p.name().get(), p) for p in self._task.processes())
@@ -629,7 +632,9 @@ class TaskRunner(object):
           hostname=socket.gethostname(),
           user=self._user,
           uid=uid,
-          ports=self._portmap)
+          ports=self._portmap,
+          host_log_dir=self._host_log_dir,
+          host_sandbox=self._host_sandbox)
       runner_ckpt = RunnerCkpt(runner_header=header)
       self._dispatcher.dispatch(self._state, runner_ckpt)
 

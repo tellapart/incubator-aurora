@@ -24,6 +24,7 @@ import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Iterables;
 import com.google.protobuf.ByteString;
 import com.twitter.common.quantity.Amount;
+import com.twitter.common.base.Command;
 import com.twitter.common.quantity.Data;
 
 import org.apache.aurora.Protobufs;
@@ -33,15 +34,18 @@ import org.apache.aurora.scheduler.base.JobKeys;
 import org.apache.aurora.scheduler.base.SchedulerException;
 import org.apache.aurora.scheduler.base.Tasks;
 import org.apache.aurora.scheduler.configuration.Resources;
-import org.apache.aurora.scheduler.storage.entities.IAssignedTask;
-import org.apache.aurora.scheduler.storage.entities.IJobKey;
-import org.apache.aurora.scheduler.storage.entities.ITaskConfig;
+import org.apache.aurora.scheduler.storage.entities.*;
+import org.apache.mesos.Protos;
+import org.apache.mesos.Protos.CommandInfo;
+import org.apache.mesos.Protos.ContainerInfo;
 import org.apache.mesos.Protos.ExecutorID;
 import org.apache.mesos.Protos.ExecutorInfo;
 import org.apache.mesos.Protos.Resource;
 import org.apache.mesos.Protos.SlaveID;
 import org.apache.mesos.Protos.TaskID;
 import org.apache.mesos.Protos.TaskInfo;
+import org.apache.mesos.Protos.Volume;
+
 
 import static java.util.Objects.requireNonNull;
 
@@ -112,6 +116,8 @@ public interface MesosTaskFactory {
      */
     @VisibleForTesting
     static final String EXECUTOR_NAME = "aurora.task";
+    static final String MESOS_DOCKER_MOUNT_ROOT = "/mnt/mesos/sandbox/";
+    static final String THERMOS_RUN_ROOT = "/var/run/thermos";
 
     private final String executorPath;
     private final Resources executorOverhead;
@@ -210,16 +216,83 @@ public interface MesosTaskFactory {
               .addAllResources(resources)
               .setData(ByteString.copyFrom(taskInBytes));
 
-      ExecutorInfo executor = ExecutorInfo.newBuilder()
+      if (config.getContainer() == null) {
+        taskBuilder.setExecutor(
+            configureTaskForExecutor(task, config).build()
+        );
+      } else {
+        configureTaskForContainerizing(task, config, taskBuilder);
+      }
+
+      return taskBuilder.build();
+    }
+
+    private ExecutorInfo.Builder configureTaskForExecutor(IAssignedTask task,
+                                                          ITaskConfig config) {
+      ExecutorInfo.Builder executor = ExecutorInfo.newBuilder()
           .setCommand(CommandUtil.create(executorPath))
           .setExecutorId(getExecutorId(task.getTaskId()))
           .setName(EXECUTOR_NAME)
           .setSource(getInstanceSourceName(config, task.getInstanceId()))
-          .addAllResources(MIN_THERMOS_RESOURCES.toResourceList())
-          .build();
-      return taskBuilder
-          .setExecutor(executor)
-          .build();
+          .addAllResources(MIN_THERMOS_RESOURCES.toResourceList());
+
+      return executor;
+    }
+
+    private void configureTaskForContainerizing(IAssignedTask task,
+                                                ITaskConfig taskConfig,
+                                                TaskInfo.Builder taskBuilder) {
+      IContainerConfig config = taskConfig.getContainer();
+      ContainerInfo.DockerInfo.Builder dockerBuilder = ContainerInfo.DockerInfo.newBuilder()
+          .setImage(config.getImage());
+
+      ContainerInfo.Builder containerBuilder = ContainerInfo.newBuilder()
+          .setType(ContainerInfo.Type.DOCKER)
+          .setDocker(dockerBuilder.build());
+
+      for (IVolumeConfig v : config.getVolumes()) {
+        Volume volume = Volume.newBuilder()
+            .setContainerPath(v.getContainer_path())
+            .setHostPath(v.getHost_path())
+            .setMode(Volume.Mode.valueOf(v.getMode().getValue()))
+            .build();
+        containerBuilder.addVolumes(volume);
+      }
+
+      // Mount /var/run/thermos into the docker container so thermos observer can see it.
+      // TODO(steve): This is hard coded to /var/run/thermos, but so is the runner,
+      //              so I think it's ok for now.
+      containerBuilder.addVolumes(
+          Volume.newBuilder()
+              .setContainerPath(THERMOS_RUN_ROOT)
+              .setHostPath(THERMOS_RUN_ROOT)
+              .setMode(Volume.Mode.RW)
+              .build()
+      );
+
+      if (!taskConfig.isHasProcesses()) {
+        LOG.info("No processes defined, bypassing thermos and running container directly.");
+        taskBuilder
+            .setContainer(containerBuilder.build());
+      } else {
+        LOG.info("Configuring thermos to run inside docker container.");
+        CommandInfo.Builder commandInfoBuilder = CommandInfo.newBuilder()
+            .setShell(false)
+            .addUris(CommandInfo.URI.newBuilder()
+                    .setValue(executorPath.replace(".sh", ".pex"))
+                    .setExecutable(true)
+            )
+            .addArguments("--docker");
+        CommandUtil.create(executorPath, MESOS_DOCKER_MOUNT_ROOT, commandInfoBuilder);
+
+        ExecutorInfo.Builder execBuilder =
+          configureTaskForExecutor(task, taskConfig)
+              .setCommand(commandInfoBuilder.build())
+              .setContainer(containerBuilder.build());
+
+        taskBuilder
+            .setExecutor(execBuilder.build());
+      }
     }
   }
 }

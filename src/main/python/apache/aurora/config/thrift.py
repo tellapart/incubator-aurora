@@ -24,6 +24,8 @@ from apache.thermos.config.loader import ThermosTaskValidator
 from gen.apache.aurora.api.constants import AURORA_EXECUTOR_NAME, GOOD_IDENTIFIER_PATTERN_PYTHON
 from gen.apache.aurora.api.ttypes import (
     Constraint,
+    ContainerConfig,
+    ContainerType,
     CronCollisionPolicy,
     ExecutorConfig,
     Identity,
@@ -31,9 +33,11 @@ from gen.apache.aurora.api.ttypes import (
     JobKey,
     LimitConstraint,
     Metadata,
+    Mode,
     TaskConfig,
     TaskConstraint,
-    ValueConstraint
+    ValueConstraint,
+    VolumeConfig
 )
 
 __all__ = (
@@ -105,16 +109,35 @@ def fully_interpolated(pystachio_object, coerce_fn=lambda i: i):
   value, _ = pystachio_object.interpolate()
   return coerce_fn(value.get())
 
+def parse_enum(enum_type, value):
+  enum_value = enum_type._NAMES_TO_VALUES.get(value.get().upper())
+  if enum_value is None:
+    raise InvalidConfig('Invalid %s type: %s' % enum_type, value.get())
+  return enum_value
 
 def select_cron_policy(cron_policy):
-  policy = CronCollisionPolicy._NAMES_TO_VALUES.get(cron_policy.get())
-  if policy is None:
-    raise InvalidConfig('Invalid cron policy: %s' % cron_policy.get())
-  return policy
+  return parse_enum(CronCollisionPolicy, cron_policy)
 
+def select_container_type(container_type):
+  return parse_enum(ContainerType, container_type)
 
 def select_service_bit(job):
   return fully_interpolated(job.service(), bool)
+
+def create_container_config(container):
+  def make_volume_config(v):
+    return VolumeConfig(
+      fully_interpolated(v.name()),
+      fully_interpolated(v.container_path()),
+      fully_interpolated(v.host_path()),
+      parse_enum(Mode, v.mode())
+    )
+  volumes = [make_volume_config(v) for v in container.volumes()]
+  config = ContainerConfig(fully_interpolated(container.name()),
+                  fully_interpolated(container.image()),
+                  select_container_type(container.type()),
+                  volumes)
+  return config
 
 
 # TODO(wickman): We should revert to using the MesosTaskInstance.
@@ -201,6 +224,9 @@ def convert(job, metadata=frozenset(), ports=frozenset()):
   task.requestedPorts = ports
   task.taskLinks = not_empty_or(job.task_links(), {})
   task.constraints = constraints_to_thrift(not_empty_or(job.constraints(), {}))
+  container = task_raw.container()
+  if container is not Empty:
+    task.container = create_container_config(container)
 
   underlying, refs = job.interpolate()
 
@@ -222,6 +248,11 @@ def convert(job, metadata=frozenset(), ports=frozenset()):
 
   if unbound:
     raise InvalidConfig('Config contains unbound variables: %s' % ' '.join(map(str, unbound)))
+
+  task.hasProcesses = any(task_raw.processes().get())
+
+  if not task.container and not task.hasProcesses:
+    raise InvalidConfig('Task %s must have at least one process or a container.' % task.job.name)
 
   task.executorConfig = ExecutorConfig(
       name=AURORA_EXECUTOR_NAME,

@@ -50,10 +50,20 @@ class SandboxInterface(Interface):
 
 
 class SandboxProvider(Interface):
+  def _get_sandbox_user(self, assigned_task):
+    return assigned_task.task.job.role if assigned_task.task.job else assigned_task.task.owner.role
+
   @abstractmethod
   def from_assigned_task(self, assigned_task):
     """Return the appropriate Sandbox implementation from an AssignedTask."""
 
+class DefaultSandboxProvider(SandboxProvider):
+  SANDBOX_NAME = 'sandbox'
+
+  def from_assigned_task(self, assigned_task):
+    return DirectorySandbox(
+      os.path.realpath(self.SANDBOX_NAME),
+      self._get_sandbox_user(assigned_task))
 
 class DirectorySandbox(SandboxInterface):
   """ Basic sandbox implementation using a directory on the filesystem """
@@ -81,20 +91,21 @@ class DirectorySandbox(SandboxInterface):
     except (IOError, OSError) as e:
       raise self.CreationError('Failed to create the sandbox: %s' % e)
 
-    try:
-      pwent = pwd.getpwnam(self._user)
-      grent = grp.getgrgid(pwent.pw_gid)
-    except KeyError:
-      raise self.CreationError(
-          'Could not create sandbox because user does not exist: %s' % self._user)
+    if self._user:
+      try:
+        pwent = pwd.getpwnam(self._user)
+        grent = grp.getgrgid(pwent.pw_gid)
+      except KeyError:
+        raise self.CreationError(
+            'Could not create sandbox because user does not exist: %s' % self._user)
 
-    try:
-      log.debug('DirectorySandbox: chown %s:%s %s' % (self._user, grent.gr_name, self.root))
-      os.chown(self.root, pwent.pw_uid, pwent.pw_gid)
-      log.debug('DirectorySandbox: chmod 700 %s' % self.root)
-      os.chmod(self.root, 0700)
-    except (IOError, OSError) as e:
-      raise self.CreationError('Failed to chown/chmod the sandbox: %s' % e)
+      try:
+        log.debug('DirectorySandbox: chown %s:%s %s' % (self._user, grent.gr_name, self.root))
+        os.chown(self.root, pwent.pw_uid, pwent.pw_gid)
+        log.debug('DirectorySandbox: chmod 700 %s' % self.root)
+        os.chmod(self.root, 0700)
+      except (IOError, OSError) as e:
+        raise self.CreationError('Failed to chown/chmod the sandbox: %s' % e)
 
   def destroy(self):
     try:

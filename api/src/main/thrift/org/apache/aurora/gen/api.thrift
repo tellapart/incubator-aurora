@@ -186,6 +186,29 @@ struct ExecutorConfig {
   2: string data
 }
 
+enum ContainerType {
+    DOCKER = 1
+}
+
+enum Mode {
+    RW = 1
+    RO = 2
+}
+
+struct VolumeConfig {
+  1: string name
+  2: string container_path
+  3: string host_path
+  4: Mode mode
+}
+
+struct ContainerConfig {
+  1: string name
+  2: string image
+  3: ContainerType type
+  4: set<VolumeConfig> volumes
+}
+
 /** Description of the tasks contained within a job. */
 struct TaskConfig {
  /** Job task belongs to. */
@@ -211,7 +234,7 @@ struct TaskConfig {
  20: set<Constraint> constraints
  /** a list of named ports this task requests */
  21: set<string> requestedPorts
-
+ 29: optional ContainerConfig container
  /**
   * Custom links to include when displaying this task on the scheduler dashboard. Keys are anchor
   * text, values are URLs. Wildcards are supported for dynamic link crafting based on host, ports,
@@ -223,6 +246,7 @@ struct TaskConfig {
  25: optional ExecutorConfig executorConfig
  /** Used to display additional details in the UI. */
  27: optional set<Metadata> metadata
+ 30: bool hasProcesses
 }
 
 /** Defines the policy for launching a new cron job when one is already running. */

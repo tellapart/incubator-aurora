@@ -61,13 +61,27 @@ class Process(Struct):
   final         = Default(Boolean, False)  # if this process should be a finalizing process
                                            # that should always be run after regular processes
 
+class Volume(Struct):
+  name = Default(String, "{{container_path}}")
+  container_path = Required(String)
+  host_path = Required(String)
+  mode = Default(String, "RW")
+
+class Container(Struct):
+  name = Default(String, "{{image}}")
+  image = Required(String)
+  type = Default(String, "docker")
+  volumes = Default(List(Volume), [])
+
+Docker = Container(type="docker")
 
 class Task(Struct):
   name = Default(String, '{{processes[0].name}}')
-  processes = List(Process)
+  processes = Default(List(Process), [])
 
   # optionals
   constraints = Default(List(Constraint), [])
+  container = Container
   resources = Resources
   max_failures = Default(Integer, 1)        # maximum number of failed processes before task is failed.
   max_concurrency = Default(Integer, 0)     # 0 is infinite concurrency.
