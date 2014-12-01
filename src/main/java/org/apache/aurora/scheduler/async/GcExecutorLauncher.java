@@ -14,6 +14,7 @@
 package org.apache.aurora.scheduler.async;
 
 import java.util.Collections;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
@@ -159,7 +160,7 @@ public class GcExecutorLauncher implements TaskLauncher {
         .setName(EXECUTOR_NAME)
         .setSource(sourceName)
         .addAllResources(GC_EXECUTOR_TASK_RESOURCES.toResourceList())
-        .setCommand(CommandUtil.create(gcExecutorPath));
+        .setCommand(CommandUtil.create(gcExecutorPath, Optional.<List<String>>absent()));
 
     byte[] data;
     try {

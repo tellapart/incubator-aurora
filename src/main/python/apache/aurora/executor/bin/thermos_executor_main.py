@@ -30,7 +30,11 @@ from apache.aurora.executor.common.announcer import DefaultAnnouncerCheckerProvi
 from apache.aurora.executor.common.executor_timeout import ExecutorTimeout
 from apache.aurora.executor.common.health_checker import HealthCheckerProvider
 from apache.aurora.executor.common.resource_manager import ResourceManagerProvider
-from apache.aurora.executor.thermos_task_runner import DefaultThermosTaskRunnerProvider
+from apache.aurora.executor.common.sandbox import DefaultSandboxProvider
+from apache.aurora.executor.thermos_task_runner import (
+    DefaultThermosTaskRunnerProvider,
+    UserOverrideThermosTaskRunnerProvider
+)
 from apache.thermos.common.path import TaskPath
 
 app.configure(debug=True)
@@ -66,11 +70,26 @@ app.add_option(
 
 
 app.add_option(
+    '--execute-as-user',
+    dest='execute_as_user',
+    type=str,
+    help='Causes the executor to override the user specified by aurora.')
+
+
+app.add_option(
     '--checkpoint-root',
     dest='checkpoint_root',
     metavar='PATH',
     default=TaskPath.DEFAULT_CHECKPOINT_ROOT,
     help='The checkpoint root where Thermos task checkpoints are stored.')
+
+
+app.add_option(
+    '--nosetuid',
+    dest='nosetuid',
+    action='store_true',
+    help='If set, the executor will not attempt to change users when running thermos_runner',
+    default=False)
 
 
 # TODO(wickman) Consider just having the OSS version require pip installed
@@ -80,7 +99,7 @@ def dump_runner_pex():
   import pkg_resources
   import apache.aurora.executor.resources
   pex_name = 'thermos_runner.pex'
-  runner_pex = os.path.join(os.path.realpath('.'), pex_name)
+  runner_pex = os.path.join(os.path.abspath('.'), pex_name)
   with open(runner_pex, 'w') as fp:
     # TODO(wickman) Use shutil.copyfileobj to reduce memory footprint here.
     fp.write(pkg_resources.resource_stream(
@@ -88,13 +107,16 @@ def dump_runner_pex():
   return runner_pex
 
 
+class UserOverrideDirectorySandboxProvider(DefaultSandboxProvider):
+  def __init__(self, user_override):
+    self._user_override = user_override
+
+  def _get_sandbox_user(self, assigned_task):
+    return self._user_override
+
+
 def proxy_main():
   def main(args, options):
-    thermos_runner_provider = DefaultThermosTaskRunnerProvider(
-        dump_runner_pex(),
-        artifact_dir=os.path.realpath('.'),
-    )
-
     # status providers:
     status_providers = [
         HealthCheckerProvider(),
@@ -105,13 +127,31 @@ def proxy_main():
       if options.announcer_ensemble is None:
         app.error('Must specify --announcer-ensemble if the announcer is enabled.')
       status_providers.append(DefaultAnnouncerCheckerProvider(
-          options.announcer_ensemble, options.announcer_serverset_path))
+        options.announcer_ensemble, options.announcer_serverset_path))
 
     # Create executor stub
-    thermos_executor = AuroraExecutor(
+    if options.execute_as_user or options.nosetuid:
+      thermos_runner_provider = UserOverrideThermosTaskRunnerProvider(
+        dump_runner_pex(),
+        artifact_dir=os.path.abspath('.')
+      )
+      thermos_runner_provider.set_role(None)
+
+      thermos_executor = AuroraExecutor(
         runner_provider=thermos_runner_provider,
         status_providers=status_providers,
-    )
+        sandbox_provider=UserOverrideDirectorySandboxProvider(options.execute_as_user)
+      )
+    else:
+      thermos_runner_provider = DefaultThermosTaskRunnerProvider(
+        dump_runner_pex(),
+        artifact_dir=os.path.abspath('.')
+      )
+
+      thermos_executor = AuroraExecutor(
+        runner_provider=thermos_runner_provider,
+        status_providers=status_providers
+      )
 
     # Create driver stub
     driver = MesosExecutorDriver(thermos_executor)

@@ -186,6 +186,40 @@ struct ExecutorConfig {
   2: string data
 }
 
+/** Defines the type of container to be used */
+enum ContainerType {
+  /** A docker container */
+  DOCKER = 1
+}
+
+/** Defines the required mount mode */
+enum Mode {
+  /** Read Write */
+  RW = 1
+  /** Read Only */
+  RO = 2
+}
+
+/** Describes a volume mount point within a container */
+struct VolumeConfig {
+  /** The path inside the container where the mount will be created. */
+  1: string containerPath
+  /** The path on the host that will serve as the source for the mount. */
+  2: string hostPath
+  /** The required access mode */
+  3: Mode mode
+}
+
+/** Describes a container to be used in a task */
+struct ContainerConfig {
+  /** The container image to be run */
+  1: string image
+  /** The container type */
+  2: ContainerType type
+  /** Zero or more volumes to mount inside the container */
+  3: set<VolumeConfig> volumes
+}
+
 /** Description of the tasks contained within a job. */
 struct TaskConfig {
  /** Job task belongs to. */
@@ -211,7 +245,8 @@ struct TaskConfig {
  20: set<Constraint> constraints
  /** a list of named ports this task requests */
  21: set<string> requestedPorts
-
+ /** the container the task should use to execute */
+ 29: optional ContainerConfig container
  /**
   * Custom links to include when displaying this task on the scheduler dashboard. Keys are anchor
   * text, values are URLs. Wildcards are supported for dynamic link crafting based on host, ports,

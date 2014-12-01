@@ -17,6 +17,8 @@ import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
 
 import org.apache.aurora.gen.Constraint;
+import org.apache.aurora.gen.ContainerConfig;
+import org.apache.aurora.gen.ContainerType;
 import org.apache.aurora.gen.CronCollisionPolicy;
 import org.apache.aurora.gen.ExecutorConfig;
 import org.apache.aurora.gen.Identity;
@@ -26,6 +28,7 @@ import org.apache.aurora.gen.LimitConstraint;
 import org.apache.aurora.gen.TaskConfig;
 import org.apache.aurora.gen.TaskConstraint;
 import org.apache.aurora.gen.ValueConstraint;
+import org.apache.aurora.scheduler.storage.entities.ITaskConfig;
 import org.junit.Test;
 
 import static org.apache.aurora.gen.test.testConstants.INVALID_IDENTIFIERS;
@@ -78,6 +81,16 @@ public class ConfigurationManagerTest {
               .setOwner(new Identity()
                   .setRole("owner-role")
                   .setUser("owner-user")));
+  private static final TaskConfig CONFIG_WITH_CONTAINER = ITaskConfig.build(new TaskConfig()
+      .setJobName("container-test")
+      .setEnvironment("devel")
+      .setExecutorConfig(new ExecutorConfig())
+          .setOwner(new Identity("role", "user"))
+          .setNumCpus(1)
+      .setRamMb(1)
+      .setDiskMb(1)
+      .setContainer(new ContainerConfig("testimage", ContainerType.DOCKER, null)))
+      .newBuilder();
 
   @Test
   public void testIsGoodIdentifier() {
@@ -95,5 +108,18 @@ public class ConfigurationManagerTest {
 
     ConfigurationManager.applyDefaultsIfUnset(copy);
     assertTrue(copy.isSetKey());
+  }
+
+  @Test
+  public void testGoodContainerConfig() throws ConfigurationManager.TaskDescriptionException {
+    ConfigurationManager.validateAndPopulate(ITaskConfig.build(CONFIG_WITH_CONTAINER));
+  }
+
+  @Test(expected = ConfigurationManager.TaskDescriptionException.class)
+  public void testBadContainerConfig() throws ConfigurationManager.TaskDescriptionException {
+    TaskConfig taskConfig = CONFIG_WITH_CONTAINER.deepCopy();
+    taskConfig.getContainer().setImage(null);
+
+    ConfigurationManager.validateAndPopulate(ITaskConfig.build(taskConfig));
   }
 }

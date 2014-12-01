@@ -13,6 +13,11 @@
  */
 package org.apache.aurora.scheduler.base;
 
+import java.util.List;
+
+import com.google.common.base.Function;
+import com.google.common.base.Optional;
+import com.google.common.collect.Iterables;
 import com.twitter.common.base.MorePreconditions;
 
 import org.apache.mesos.Protos.CommandInfo;
@@ -23,11 +28,24 @@ import org.apache.mesos.Protos.CommandInfo.URI;
  */
 public final class CommandUtil {
 
+  private static final Function<String, URI> STRING_TO_URI_RESOURCE = new Function<String, URI>() {
+    @Override
+    public URI apply(String resource) {
+      return URI.newBuilder().setValue(resource).setExecutable(true).build();
+    }
+  };
+
   private CommandUtil() {
     // Utility class.
   }
 
-  private static String uriBasename(String uri) {
+  /**
+   * Gets the last part of the path of a URI.
+   *
+   * @param uri URI to parse
+   * @return The last segment of the URI.
+   */
+  public static String uriBasename(String uri) {
     int lastSlash = uri.lastIndexOf('/');
     if (lastSlash == -1) {
       return uri;
@@ -43,15 +61,52 @@ public final class CommandUtil {
    * Creates a description of a command that will fetch and execute the given URI to an executor
    * binary.
    *
-   * @param executorUri URI to the executor.
-   * @return A command that will fetch and execute the executor.
+   * @param executorUri A URI to the executor
+   * @param executorResources A list of URIs to be fetched into the sandbox with the executor.
+   * @return A populated CommandInfo with correct resources set and command set.
    */
-  public static CommandInfo create(String executorUri) {
-    MorePreconditions.checkNotBlank(executorUri);
+  public static CommandInfo create(String executorUri, Optional<List<String>> executorResources) {
+    return create(
+        executorUri,
+        executorResources,
+        Optional.<String>absent(),
+        Optional.<String>absent(),
+        Optional.<String>absent()).build();
+  }
 
-    return CommandInfo.newBuilder()
-        .addUris(URI.newBuilder().setValue(executorUri).setExecutable(true))
-        .setValue("./" + uriBasename(executorUri))
-        .build();
+  /**
+   * Creates a description of a command that will fetch and execute the given URI to an executor
+   * binary.
+   *
+   * @param executorUri A URI to the executor
+   * @param executorResources A list of URIs to be fetched into the sandbox with the executor.
+   * @param commandPrefix An string to prefix the generated command with
+   * @param commandSuffix An string to suffix the generated command with
+   * @param extraArguments Extra command line arguments to add to the generated command.
+   * @return A CommandInfo.Builder populated with resources and a command.
+   */
+  public static CommandInfo.Builder create(
+      String executorUri,
+      Optional<List<String>> executorResources,
+      Optional<String> commandPrefix,
+      Optional<String> commandSuffix,
+      Optional<String> extraArguments) {
+
+    CommandInfo.Builder builder = CommandInfo.newBuilder();
+    MorePreconditions.checkNotBlank(executorUri);
+    if (executorResources.isPresent()) {
+      List<String> splitResources = executorResources.get();
+      builder.addAllUris(Iterables.transform(splitResources, STRING_TO_URI_RESOURCE));
+    }
+
+    builder.addUris(STRING_TO_URI_RESOURCE.apply(executorUri));
+
+    String cmdLine = commandPrefix.or("")
+        + "./" + uriBasename(executorUri)
+        + commandSuffix.or("")
+        + " " + extraArguments.or("");
+    return builder
+        .setValue(cmdLine.trim())
+        .setShell(true);
   }
 }

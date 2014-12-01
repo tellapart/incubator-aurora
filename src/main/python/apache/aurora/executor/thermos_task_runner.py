@@ -250,7 +250,7 @@ class ThermosTaskRunner(TaskRunner):
                   thermos_json=self._task_filename,
                   hostname=self._hostname)
 
-    if getpass.getuser() == 'root':
+    if getpass.getuser() == 'root' and self._role:
       params.update(setuid=self._role)
 
     cmdline_args = [sys.executable, self._runner_pex]
@@ -369,9 +369,12 @@ class DefaultThermosTaskRunnerProvider(TaskRunnerProvider):
     self._preemption_wait = preemption_wait
     self._task_runner_class = task_runner_class
 
+  def _get_role(self, assigned_task):
+    return assigned_task.task.job.role if assigned_task.task.job else assigned_task.task.owner.role
+
   def from_assigned_task(self, assigned_task, sandbox):
     task_id = assigned_task.taskId
-    role = assigned_task.task.job.role if assigned_task.task.job else assigned_task.task.owner.role
+    role = self._get_role(assigned_task)
     try:
       mesos_task = mesos_task_instance_from_assigned_task(assigned_task)
     except ValueError as e:
@@ -394,3 +397,11 @@ class DefaultThermosTaskRunnerProvider(TaskRunnerProvider):
         artifact_dir=self._artifact_dir,
         clock=self._clock,
         hostname=assigned_task.slaveHost)
+
+
+class UserOverrideThermosTaskRunnerProvider(DefaultThermosTaskRunnerProvider):
+  def set_role(self, role):
+    self._role = role
+
+  def _get_role(self, assigned_task):
+    return self._role

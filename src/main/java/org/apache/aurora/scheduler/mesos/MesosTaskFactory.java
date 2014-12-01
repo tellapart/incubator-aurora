@@ -20,6 +20,7 @@ import java.util.logging.Logger;
 import javax.inject.Inject;
 
 import com.google.common.annotations.VisibleForTesting;
+import com.google.common.base.Optional;
 import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Iterables;
 import com.google.protobuf.ByteString;
@@ -33,19 +34,23 @@ import org.apache.aurora.scheduler.base.JobKeys;
 import org.apache.aurora.scheduler.base.SchedulerException;
 import org.apache.aurora.scheduler.base.Tasks;
 import org.apache.aurora.scheduler.configuration.Resources;
+
 import org.apache.aurora.scheduler.storage.entities.IAssignedTask;
+import org.apache.aurora.scheduler.storage.entities.IContainerConfig;
 import org.apache.aurora.scheduler.storage.entities.IJobKey;
 import org.apache.aurora.scheduler.storage.entities.ITaskConfig;
+import org.apache.aurora.scheduler.storage.entities.IVolumeConfig;
+import org.apache.mesos.Protos.CommandInfo;
+import org.apache.mesos.Protos.ContainerInfo;
 import org.apache.mesos.Protos.ExecutorID;
 import org.apache.mesos.Protos.ExecutorInfo;
 import org.apache.mesos.Protos.Resource;
 import org.apache.mesos.Protos.SlaveID;
 import org.apache.mesos.Protos.TaskID;
 import org.apache.mesos.Protos.TaskInfo;
+import org.apache.mesos.Protos.Volume;
 
 import static java.util.Objects.requireNonNull;
-
-import static com.twitter.common.base.MorePreconditions.checkNotBlank;
 
 /**
  * A factory to create mesos task objects.
@@ -63,16 +68,48 @@ public interface MesosTaskFactory {
   TaskInfo createFrom(IAssignedTask task, SlaveID slaveId) throws SchedulerException;
 
   class ExecutorSettings {
+
     private final String executorPath;
+    private final Optional<List<String>> executorResources;
+    private final String thermosObserverRoot;
+    private final Optional<String> executorFlags;
+    private final boolean allowDockerMounts;
     private final Resources executorOverhead;
 
-    public ExecutorSettings(String executorPath, Resources executorOverhead) {
-      this.executorPath = checkNotBlank(executorPath);
+    public ExecutorSettings(
+        String executorPath,
+        Optional<List<String>> executorResources,
+        String thermosObserverRoot,
+        Optional<String> executorFlags,
+        boolean allowDockerMounts,
+        Resources executorOverhead) {
+
+      this.executorPath = requireNonNull(executorPath);
+      this.executorResources = requireNonNull(executorResources);
+      this.thermosObserverRoot = requireNonNull(thermosObserverRoot);
+      this.executorFlags = requireNonNull(executorFlags);
+      this.allowDockerMounts = allowDockerMounts;
       this.executorOverhead = requireNonNull(executorOverhead);
     }
 
     String getExecutorPath() {
       return executorPath;
+    }
+
+    Optional<List<String>> getExecutorResources() {
+      return executorResources;
+    }
+
+    String getThermosObserverRoot() {
+      return thermosObserverRoot;
+    }
+
+    Optional<String> getExecutorFlags() {
+      return executorFlags;
+    }
+
+    boolean isAllowDockerMounts() {
+      return allowDockerMounts;
     }
 
     Resources getExecutorOverhead() {
@@ -113,13 +150,24 @@ public interface MesosTaskFactory {
     @VisibleForTesting
     static final String EXECUTOR_NAME = "aurora.task";
 
-    private final String executorPath;
-    private final Resources executorOverhead;
+    /**
+     * This script sets up a symlink inside the docker container to the same path
+     * as the sandbox outside the container.  This allows the executor /observer
+     * to see the same path inside and outside.  It also changes the working directory
+     * to the sandbox (which the executor expects).
+     */
+    private static final String DOCKER_COMMAND_PREFIX =
+        "mkdir -p `dirname $MESOS_DIRECTORY` && "
+      + "ln -s $MESOS_SANDBOX $MESOS_DIRECTORY && "
+      + "cd $MESOS_DIRECTORY && ";
+
+    private static final String DOCKER_COMMAND_SUFFIX = " --nosetuid";
+
+    private final ExecutorSettings executorSettings;
 
     @Inject
     MesosTaskFactoryImpl(ExecutorSettings executorSettings) {
-      this.executorPath = executorSettings.getExecutorPath();
-      this.executorOverhead = executorSettings.getExecutorOverhead();
+      this.executorSettings = requireNonNull(executorSettings);
     }
 
     @VisibleForTesting
@@ -185,7 +233,8 @@ public interface MesosTaskFactory {
 
       ITaskConfig config = task.getTask();
       Resources taskResources = Resources.from(config);
-      Resources containerResources = Resources.sum(taskResources, executorOverhead);
+      Resources containerResources =
+          Resources.sum(taskResources, executorSettings.getExecutorOverhead());
 
       taskResources = Resources.subtract(containerResources, MIN_THERMOS_RESOURCES);
       // It is possible that the final task resources will be negative.
@@ -198,10 +247,9 @@ public interface MesosTaskFactory {
               ? ImmutableSet.copyOf(task.getAssignedPorts().values())
               : ImmutableSet.<Integer>of());
 
-      if (LOG.isLoggable(Level.FINE)) {
-        LOG.fine("Setting task resources to "
-            + Iterables.transform(resources, Protobufs.SHORT_TOSTRING));
-      }
+      LOG.fine("Setting task resources to "
+          + Iterables.transform(resources, Protobufs.SHORT_TOSTRING));
+
       TaskInfo.Builder taskBuilder =
           TaskInfo.newBuilder()
               .setName(JobKeys.canonicalString(Tasks.ASSIGNED_TO_JOB_KEY.apply(task)))
@@ -210,16 +258,95 @@ public interface MesosTaskFactory {
               .addAllResources(resources)
               .setData(ByteString.copyFrom(taskInBytes));
 
-      ExecutorInfo executor = ExecutorInfo.newBuilder()
-          .setCommand(CommandUtil.create(executorPath))
+      if (config.getContainer() == null) {
+        configureTaskForNoContainer(task, config, taskBuilder);
+      } else {
+        configureTaskForContainer(task, config, taskBuilder);
+      }
+
+      return taskBuilder.build();
+    }
+
+    private void configureTaskForNoContainer(
+        IAssignedTask task,
+        ITaskConfig config,
+        TaskInfo.Builder taskBuilder) {
+
+      CommandInfo commandInfo = CommandUtil.create(
+          executorSettings.getExecutorPath(),
+          executorSettings.getExecutorResources(),
+          Optional.<String>absent(),
+          Optional.<String>absent(),
+          executorSettings.getExecutorFlags()).build();
+
+      ExecutorInfo.Builder executorBuilder = configureTaskForExecutor(task, config, commandInfo);
+      taskBuilder.setExecutor(executorBuilder.build());
+    }
+
+    private void configureTaskForContainer(
+        IAssignedTask task,
+        ITaskConfig taskConfig,
+        TaskInfo.Builder taskBuilder) {
+
+      IContainerConfig config = taskConfig.getContainer();
+      ContainerInfo.DockerInfo.Builder dockerBuilder = ContainerInfo.DockerInfo.newBuilder()
+          .setImage(config.getImage());
+
+      ContainerInfo.Builder containerBuilder = ContainerInfo.newBuilder()
+          .setType(ContainerInfo.Type.valueOf(config.getType().getValue()))
+          .setDocker(dockerBuilder.build());
+
+      configureContainerVolumes(config, containerBuilder);
+
+      // TODO(SteveNiemitz): Allow users to specify an executor per container type.
+      CommandInfo.Builder commandInfoBuilder = CommandUtil.create(
+          executorSettings.getExecutorPath(),
+          executorSettings.getExecutorResources(),
+          Optional.of(DOCKER_COMMAND_PREFIX),
+          Optional.of(DOCKER_COMMAND_SUFFIX),
+          executorSettings.getExecutorFlags());
+
+      ExecutorInfo.Builder execBuilder =
+          configureTaskForExecutor(task, taskConfig, commandInfoBuilder.build())
+              .setContainer(containerBuilder.build());
+
+      taskBuilder.setExecutor(execBuilder.build());
+    }
+
+    private ExecutorInfo.Builder configureTaskForExecutor(
+        IAssignedTask task,
+        ITaskConfig config,
+        CommandInfo commandInfo) {
+
+      return ExecutorInfo.newBuilder()
+          .setCommand(commandInfo)
           .setExecutorId(getExecutorId(task.getTaskId()))
           .setName(EXECUTOR_NAME)
           .setSource(getInstanceSourceName(config, task.getInstanceId()))
-          .addAllResources(MIN_THERMOS_RESOURCES.toResourceList())
-          .build();
-      return taskBuilder
-          .setExecutor(executor)
-          .build();
+          .addAllResources(MIN_THERMOS_RESOURCES.toResourceList());
+    }
+
+    private void configureContainerVolumes(
+        IContainerConfig config,
+        ContainerInfo.Builder containerBuilder) {
+
+      if (executorSettings.isAllowDockerMounts()) {
+        for (IVolumeConfig v : config.getVolumes()) {
+          containerBuilder.addVolumes(
+            Volume.newBuilder()
+              .setContainerPath(v.getContainerPath())
+              .setHostPath(v.getHostPath())
+              .setMode(Volume.Mode.valueOf(v.getMode().getValue()))
+              .build());
+        }
+      }
+
+      containerBuilder.addVolumes(
+          Volume.newBuilder()
+              .setContainerPath(executorSettings.getThermosObserverRoot())
+              .setHostPath(executorSettings.getThermosObserverRoot())
+              .setMode(Volume.Mode.RW)
+              .build());
     }
   }
 }

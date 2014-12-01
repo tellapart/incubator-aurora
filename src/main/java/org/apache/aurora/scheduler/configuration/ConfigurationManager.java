@@ -38,11 +38,13 @@ import org.apache.aurora.gen.TaskConfig._Fields;
 import org.apache.aurora.gen.TaskConstraint;
 import org.apache.aurora.scheduler.base.JobKeys;
 import org.apache.aurora.scheduler.storage.entities.IConstraint;
+import org.apache.aurora.scheduler.storage.entities.IContainerConfig;
 import org.apache.aurora.scheduler.storage.entities.IIdentity;
 import org.apache.aurora.scheduler.storage.entities.IJobConfiguration;
 import org.apache.aurora.scheduler.storage.entities.ITaskConfig;
 import org.apache.aurora.scheduler.storage.entities.ITaskConstraint;
 import org.apache.aurora.scheduler.storage.entities.IValueConstraint;
+import org.apache.aurora.scheduler.storage.entities.IVolumeConfig;
 
 import static org.apache.aurora.gen.apiConstants.GOOD_IDENTIFIER_PATTERN_JVM;
 
@@ -340,6 +342,24 @@ public final class ConfigurationManager {
       if (!config.getOwner().getRole().equals(dedicatedRole)) {
         throw new TaskDescriptionException(
             "Only " + dedicatedRole + " may use hosts dedicated for that role.");
+      }
+    }
+
+    if (config.isSetContainer()) {
+      IContainerConfig containerConfig = config.getContainer();
+      if (!containerConfig.isSetImage()) {
+        throw new TaskDescriptionException("A container must specify an image");
+      }
+
+      if (containerConfig.isSetVolumes()) {
+        for (IVolumeConfig v : containerConfig.getVolumes()) {
+          if (!v.isSetContainerPath()) {
+            throw new TaskDescriptionException("A volume must specify a containerPath");
+          }
+          if (!v.isSetHostPath()) {
+            throw new TaskDescriptionException("A volume must specify a hostPath");
+          }
+        }
       }
     }
 
