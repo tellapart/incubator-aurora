@@ -186,26 +186,41 @@ struct ExecutorConfig {
   2: string data
 }
 
+/** Defines the type of container to be used */
 enum ContainerType {
+    /** A docker container */
     DOCKER = 1
 }
 
+/** Defines the required mount mode */
 enum Mode {
+    /** Read Write */
     RW = 1
+    /** Read Only */
     RO = 2
 }
 
+/** Describes a volume mount point within a container */
 struct VolumeConfig {
+  /** Name identifier for the volume config */
   1: string name
+  /** The path the volume should be mounted at inside the container */
   2: string container_path
+  /** The path on the host to mount */
   3: string host_path
+  /** The required access mode */
   4: Mode mode
 }
 
+/** Describes a container to be used in a task */
 struct ContainerConfig {
+  /** Name identifier for the container */
   1: string name
+  /** The image to be used */
   2: string image
+  /** The container type */
   3: ContainerType type
+  /** A set of zero or more volumes to mount inside the container */
   4: set<VolumeConfig> volumes
 }
 
@@ -234,6 +249,7 @@ struct TaskConfig {
  20: set<Constraint> constraints
  /** a list of named ports this task requests */
  21: set<string> requestedPorts
+ /** the container the task should use to execute */
  29: optional ContainerConfig container
  /**
   * Custom links to include when displaying this task on the scheduler dashboard. Keys are anchor
@@ -246,6 +262,10 @@ struct TaskConfig {
  25: optional ExecutorConfig executorConfig
  /** Used to display additional details in the UI. */
  27: optional set<Metadata> metadata
+ /**
+  * set if any processes were defined for this task, used to determine how to launch the
+  * task and container.
+ **/
  30: bool hasProcesses
 }
 

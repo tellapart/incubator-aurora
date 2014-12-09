@@ -260,8 +260,7 @@ public interface MesosTaskFactory {
       }
 
       // Mount /var/run/thermos into the docker container so thermos observer can see it.
-      // TODO(steve): This is hard coded to /var/run/thermos, but so is the runner,
-      //              so I think it's ok for now.
+      // This is hard coded to /var/run/thermos, but so is the runner, so I think it's ok for now.
       containerBuilder.addVolumes(
           Volume.newBuilder()
               .setContainerPath(THERMOS_RUN_ROOT)
@@ -276,9 +275,19 @@ public interface MesosTaskFactory {
             .setContainer(containerBuilder.build());
       } else {
         LOG.info("Configuring thermos to run inside docker container.");
+        if (!executorPath.toLowerCase().endsWith("thermos_executor.sh")) {
+          String logMessage = "The executor (-thermos_executor_path=...) MUST be " +
+              "'thermos_executor.sh' in order to run processes inside a task with " +
+              "a docker container.  In addition, thermos_executor.pex MUST be next " +
+              "to it on the file system";
+          LOG.log(Level.SEVERE, logMessage);
+          throw  new SchedulerException(logMessage);
+        }
         CommandInfo.Builder commandInfoBuilder = CommandInfo.newBuilder()
             .setShell(false)
             .addUris(CommandInfo.URI.newBuilder()
+                    // This assumes the executor path is "thermos_executor.sh" and a
+                    // the thermos executor is named "thermos_executor.pex" and next to it.
                     .setValue(executorPath.replace(".sh", ".pex"))
                     .setExecutable(true)
             )
