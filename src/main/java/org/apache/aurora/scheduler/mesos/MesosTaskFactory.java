@@ -24,7 +24,6 @@ import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Iterables;
 import com.google.protobuf.ByteString;
 import com.twitter.common.quantity.Amount;
-import com.twitter.common.base.Command;
 import com.twitter.common.quantity.Data;
 
 import org.apache.aurora.Protobufs;
@@ -34,8 +33,12 @@ import org.apache.aurora.scheduler.base.JobKeys;
 import org.apache.aurora.scheduler.base.SchedulerException;
 import org.apache.aurora.scheduler.base.Tasks;
 import org.apache.aurora.scheduler.configuration.Resources;
-import org.apache.aurora.scheduler.storage.entities.*;
-import org.apache.mesos.Protos;
+
+import org.apache.aurora.scheduler.storage.entities.IAssignedTask;
+import org.apache.aurora.scheduler.storage.entities.IContainerConfig;
+import org.apache.aurora.scheduler.storage.entities.IJobKey;
+import org.apache.aurora.scheduler.storage.entities.ITaskConfig;
+import org.apache.aurora.scheduler.storage.entities.IVolumeConfig;
 import org.apache.mesos.Protos.CommandInfo;
 import org.apache.mesos.Protos.ContainerInfo;
 import org.apache.mesos.Protos.ExecutorID;
@@ -45,7 +48,6 @@ import org.apache.mesos.Protos.SlaveID;
 import org.apache.mesos.Protos.TaskID;
 import org.apache.mesos.Protos.TaskInfo;
 import org.apache.mesos.Protos.Volume;
-
 
 import static java.util.Objects.requireNonNull;
 
@@ -269,17 +271,13 @@ public interface MesosTaskFactory {
               .build()
       );
 
-      if (!taskConfig.isHasProcesses()) {
-        LOG.info("No processes defined, bypassing thermos and running container directly.");
-        taskBuilder
-            .setContainer(containerBuilder.build());
-      } else {
+      if (taskConfig.isHasProcesses()) {
         LOG.info("Configuring thermos to run inside docker container.");
         if (!executorPath.toLowerCase().endsWith("thermos_executor.sh")) {
-          String logMessage = "The executor (-thermos_executor_path=...) MUST be " +
-              "'thermos_executor.sh' in order to run processes inside a task with " +
-              "a docker container.  In addition, thermos_executor.pex MUST be next " +
-              "to it on the file system";
+          String logMessage = "The executor (-thermos_executor_path=...) MUST be "
+              + "'thermos_executor.sh' in order to run processes inside a task with "
+              + "a docker container.  In addition, thermos_executor.pex MUST be next "
+              + "to it on the file system";
           LOG.log(Level.SEVERE, logMessage);
           throw  new SchedulerException(logMessage);
         }
@@ -295,12 +293,16 @@ public interface MesosTaskFactory {
         CommandUtil.create(executorPath, MESOS_DOCKER_MOUNT_ROOT, commandInfoBuilder);
 
         ExecutorInfo.Builder execBuilder =
-          configureTaskForExecutor(task, taskConfig)
-              .setCommand(commandInfoBuilder.build())
-              .setContainer(containerBuilder.build());
+            configureTaskForExecutor(task, taskConfig)
+                .setCommand(commandInfoBuilder.build())
+                .setContainer(containerBuilder.build());
 
         taskBuilder
             .setExecutor(execBuilder.build());
+      } else {
+        LOG.info("No processes defined, bypassing thermos and running container directly.");
+        taskBuilder
+            .setContainer(containerBuilder.build());
       }
     }
   }
