@@ -112,7 +112,7 @@ def fully_interpolated(pystachio_object, coerce_fn=lambda i: i):
 def parse_enum(enum_type, value):
   enum_value = enum_type._NAMES_TO_VALUES.get(value.get().upper())
   if enum_value is None:
-    raise InvalidConfig('Invalid %s type: %s' % enum_type, value.get())
+    raise InvalidConfig('Invalid %s type: %s' % (enum_type, value.get()))
   return enum_value
 
 def select_cron_policy(cron_policy):
