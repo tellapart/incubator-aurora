@@ -88,6 +88,10 @@ public class SchedulerMain extends AbstractApplication {
   @CmdLine(name = "thermos_executor_path", help = "Path to the thermos executor launch script.")
   private static final Arg<String> THERMOS_EXECUTOR_PATH = Arg.create();
 
+  @CmdLine(name= "thermos_observer_root", help = "Path to the thermos observer root "
+                                               + "(by default /var/run/thermos.)")
+  private static final Arg<String> THERMOS_OBSERVER_ROOT = Arg.create("/var/run/thermos");
+
   @CmdLine(name = "auth_module",
       help = "A Guice module to provide auth bindings. NOTE: The default is unsecure.")
   private static final Arg<? extends Class<? extends Module>> AUTH_MODULE =
@@ -190,7 +194,10 @@ public class SchedulerMain extends AbstractApplication {
                 Amount.of(0L, Data.MB),
                 0);
             bind(ExecutorSettings.class)
-                .toInstance(new ExecutorSettings(THERMOS_EXECUTOR_PATH.get(), executorOverhead));
+                .toInstance(new ExecutorSettings(
+                    THERMOS_EXECUTOR_PATH.get(),
+                    THERMOS_OBSERVER_ROOT.get(),
+                    executorOverhead));
           }
         })
         .add(getMesosModules())

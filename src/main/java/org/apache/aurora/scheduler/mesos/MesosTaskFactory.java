@@ -70,16 +70,22 @@ public interface MesosTaskFactory {
 
   class ExecutorSettings {
     private final String executorPath;
+    private final String thermosObserverRoot;
     private final Resources executorOverhead;
 
-    public ExecutorSettings(String executorPath, Resources executorOverhead) {
+    public ExecutorSettings(String executorPath,
+                            String thermosObserverRoot,
+                            Resources executorOverhead) {
       this.executorPath = checkNotBlank(executorPath);
+      this.thermosObserverRoot = thermosObserverRoot;
       this.executorOverhead = requireNonNull(executorOverhead);
     }
 
     String getExecutorPath() {
       return executorPath;
     }
+
+    String getThermosObserverRoot() { return thermosObserverRoot; }
 
     Resources getExecutorOverhead() {
       return executorOverhead;
@@ -119,14 +125,15 @@ public interface MesosTaskFactory {
     @VisibleForTesting
     static final String EXECUTOR_NAME = "aurora.task";
     static final String MESOS_DOCKER_MOUNT_ROOT = "/mnt/mesos/sandbox/";
-    static final String THERMOS_RUN_ROOT = "/var/run/thermos";
 
     private final String executorPath;
+    private final String thermosObserverRoot;
     private final Resources executorOverhead;
 
     @Inject
     MesosTaskFactoryImpl(ExecutorSettings executorSettings) {
       this.executorPath = executorSettings.getExecutorPath();
+      this.thermosObserverRoot = executorSettings.getThermosObserverRoot();
       this.executorOverhead = executorSettings.getExecutorOverhead();
     }
 
@@ -261,12 +268,10 @@ public interface MesosTaskFactory {
         containerBuilder.addVolumes(volume);
       }
 
-      // Mount /var/run/thermos into the docker container so thermos observer can see it.
-      // This is hard coded to /var/run/thermos, but so is the runner, so I think it's ok for now.
       containerBuilder.addVolumes(
           Volume.newBuilder()
-              .setContainerPath(THERMOS_RUN_ROOT)
-              .setHostPath(THERMOS_RUN_ROOT)
+              .setContainerPath(thermosObserverRoot)
+              .setHostPath(thermosObserverRoot)
               .setMode(Volume.Mode.RW)
               .build()
       );
