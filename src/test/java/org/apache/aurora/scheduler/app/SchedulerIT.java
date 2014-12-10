@@ -204,7 +204,10 @@ public class SchedulerIT extends BaseZooKeeperTest {
             Amount.of(0L, Data.MB),
             0);
         bind(ExecutorSettings.class)
-            .toInstance(new ExecutorSettings("/executor/thermos", executorOverhead));
+            .toInstance(new ExecutorSettings(
+                "/executor/thermos",
+                "/var/run/thermos",
+                executorOverhead));
         install(new BackupModule(backupDir, SnapshotStoreImpl.class));
       }
     };
