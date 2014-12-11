@@ -70,13 +70,19 @@ public interface MesosTaskFactory {
 
   class ExecutorSettings {
     private final String executorPath;
+    private final String wrapperPath;
     private final String thermosObserverRoot;
     private final Resources executorOverhead;
 
     public ExecutorSettings(String executorPath,
+                            String wrapperPath,
                             String thermosObserverRoot,
                             Resources executorOverhead) {
-      this.executorPath = checkNotBlank(executorPath);
+      if (executorPath == null && wrapperPath == null) {
+        throw new NullPointerException();
+      }
+      this.executorPath = executorPath;
+      this.wrapperPath = wrapperPath;
       this.thermosObserverRoot = thermosObserverRoot;
       this.executorOverhead = requireNonNull(executorOverhead);
     }
@@ -85,7 +91,13 @@ public interface MesosTaskFactory {
       return executorPath;
     }
 
-    String getThermosObserverRoot() { return thermosObserverRoot; }
+    String getWrapperPath() {
+      return wrapperPath;
+    }
+
+    String getThermosObserverRoot() {
+      return thermosObserverRoot;
+    }
 
     Resources getExecutorOverhead() {
       return executorOverhead;
@@ -127,12 +139,14 @@ public interface MesosTaskFactory {
     static final String MESOS_DOCKER_MOUNT_ROOT = "/mnt/mesos/sandbox/";
 
     private final String executorPath;
+    private final String wrapperPath;
     private final String thermosObserverRoot;
     private final Resources executorOverhead;
 
     @Inject
     MesosTaskFactoryImpl(ExecutorSettings executorSettings) {
       this.executorPath = executorSettings.getExecutorPath();
+      this.wrapperPath = executorSettings.getWrapperPath();
       this.thermosObserverRoot = executorSettings.getThermosObserverRoot();
       this.executorOverhead = executorSettings.getExecutorOverhead();
     }
@@ -239,7 +253,7 @@ public interface MesosTaskFactory {
     private ExecutorInfo.Builder configureTaskForExecutor(IAssignedTask task,
                                                           ITaskConfig config) {
       ExecutorInfo.Builder executor = ExecutorInfo.newBuilder()
-          .setCommand(CommandUtil.create(executorPath))
+          .setCommand(CommandUtil.create(executorPath, wrapperPath))
           .setExecutorId(getExecutorId(task.getTaskId()))
           .setName(EXECUTOR_NAME)
           .setSource(getInstanceSourceName(config, task.getInstanceId()))
@@ -278,24 +292,16 @@ public interface MesosTaskFactory {
 
       if (taskConfig.isHasProcesses()) {
         LOG.info("Configuring thermos to run inside docker container.");
-        if (!executorPath.toLowerCase().endsWith("thermos_executor.sh")) {
-          String logMessage = "The executor (-thermos_executor_path=...) MUST be "
-              + "'thermos_executor.sh' in order to run processes inside a task with "
-              + "a docker container.  In addition, thermos_executor.pex MUST be next "
-              + "to it on the file system";
-          LOG.log(Level.SEVERE, logMessage);
-          throw  new SchedulerException(logMessage);
-        }
         CommandInfo.Builder commandInfoBuilder = CommandInfo.newBuilder()
             .setShell(false)
-            .addUris(CommandInfo.URI.newBuilder()
-                    // This assumes the executor path is "thermos_executor.sh" and a
-                    // the thermos executor is named "thermos_executor.pex" and next to it.
-                    .setValue(executorPath.replace(".sh", ".pex"))
-                    .setExecutable(true)
-            )
-            .addArguments("--docker");
-        CommandUtil.create(executorPath, MESOS_DOCKER_MOUNT_ROOT, commandInfoBuilder);
+            .addArguments("--dockerize");
+        if (executorPath != null && wrapperPath != null) {
+          commandInfoBuilder.addUris(CommandInfo.URI.newBuilder()
+                  .setValue(executorPath)
+                  .setExecutable(true)
+          );
+        }
+        CommandUtil.create(executorPath, wrapperPath, MESOS_DOCKER_MOUNT_ROOT, commandInfoBuilder);
 
         ExecutorInfo.Builder execBuilder =
             configureTaskForExecutor(task, taskConfig)

@@ -39,9 +39,9 @@ public final class CommandUtil {
     }
   }
 
-  public static CommandInfo create(String executorUri) {
+  public static CommandInfo create(String executorUri, String wrapperUri) {
     CommandInfo.Builder builder = CommandInfo.newBuilder();
-    create(executorUri, "./", builder);
+    create(executorUri, wrapperUri, "./", builder);
     return builder.build();
   }
 
@@ -50,13 +50,27 @@ public final class CommandUtil {
    * binary.
    *
    * @param executorUri URI to the executor.
-   * @return A command that will fetch and execute the executor.
+   * @param wrapperUri URI to the executor wrapper
+   * @param basePath The base path to the executor
+   * @param builder A CommandBuilder to populate
    */
-  public static void create(String executorUri, String basePath, CommandInfo.Builder builder) {
-    MorePreconditions.checkNotBlank(executorUri);
+  public static void create(String executorUri, String wrapperUri, String basePath, CommandInfo.Builder builder) {
+    String uriToAdd = null;
 
-    builder
-        .addUris(URI.newBuilder().setValue(executorUri).setExecutable(true))
-        .setValue(basePath + uriBasename(executorUri));
+    if (wrapperUri != null) {
+      if (executorUri != null) {
+        builder.addArguments("--executorUri=" + executorUri);
+      }
+      uriToAdd = wrapperUri;
+    }
+    else if (wrapperUri == null && executorUri != null) {
+      uriToAdd = executorUri;
+    }
+    else {
+      throw new IllegalArgumentException("At least executorUri or wrapperUri must be non-null");
+    }
+
+    builder.setValue(basePath + uriBasename(uriToAdd));
+    builder.addUris(URI.newBuilder().setValue(uriToAdd).setExecutable(true));
   }
 }

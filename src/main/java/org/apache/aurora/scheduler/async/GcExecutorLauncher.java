@@ -159,7 +159,7 @@ public class GcExecutorLauncher implements TaskLauncher {
         .setName(EXECUTOR_NAME)
         .setSource(sourceName)
         .addAllResources(GC_EXECUTOR_TASK_RESOURCES.toResourceList())
-        .setCommand(CommandUtil.create(gcExecutorPath));
+        .setCommand(CommandUtil.create(gcExecutorPath, null));
 
     byte[] data;
     try {
