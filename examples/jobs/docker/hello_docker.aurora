@@ -1,4 +1,4 @@
-pkg_path = '/vagrant/hello_world.py'
+pkg_path = '/vagrant/examples/jobs/docker/hello_docker.py'
 
 # we use a trick here to make the configuration change with
 # the contents of the file, for simplicity.  in a normal setting, packages would be
