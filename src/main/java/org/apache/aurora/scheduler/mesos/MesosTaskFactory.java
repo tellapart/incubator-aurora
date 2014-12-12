@@ -134,6 +134,7 @@ public interface MesosTaskFactory {
      */
     @VisibleForTesting
     static final String EXECUTOR_NAME = "aurora.task";
+    @VisibleForTesting
     static final String MESOS_DOCKER_MOUNT_ROOT = "/mnt/mesos/sandbox/";
 
     private final String executorPath;
