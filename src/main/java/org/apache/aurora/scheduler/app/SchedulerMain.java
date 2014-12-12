@@ -87,7 +87,8 @@ public class SchedulerMain extends AbstractApplication {
   @CmdLine(name = "thermos_executor_path", help = "Path to the thermos executor pex file.")
   private static final Arg<String> THERMOS_EXECUTOR_PATH = Arg.create();
 
-  @CmdLine(name = "thermos_executor_wrapper_path", help = "Path to the thermos executor launch script.")
+  @CmdLine(name = "thermos_executor_wrapper_path",
+           help = "Path to the thermos executor launch script.")
   private static final Arg<String> THERMOS_EXECUTOR_WRAPPER_PATH = Arg.create();
 
   @CmdLine(name = "thermos_observer_root", help = "Path to the thermos observer root "

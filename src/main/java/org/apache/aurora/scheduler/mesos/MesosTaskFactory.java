@@ -51,8 +51,6 @@ import org.apache.mesos.Protos.Volume;
 
 import static java.util.Objects.requireNonNull;
 
-import static com.twitter.common.base.MorePreconditions.checkNotBlank;
-
 /**
  * A factory to create mesos task objects.
  */
