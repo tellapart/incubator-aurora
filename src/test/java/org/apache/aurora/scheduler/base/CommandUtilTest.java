@@ -33,12 +33,12 @@ public class CommandUtilTest {
 
   @Test(expected = IllegalArgumentException.class)
   public void testBadUri() {
-    CommandUtil.create("a/b/c/");
+    CommandUtil.create("a/b/c/", null);
   }
 
   @Test(expected = IllegalArgumentException.class)
   public void testEmptyUri() {
-    CommandUtil.create("");
+    CommandUtil.create("", null);
   }
 
   private void test(String basename, String uri, Map<String, String> env) {
@@ -46,6 +46,6 @@ public class CommandUtilTest {
         .addUris(URI.newBuilder().setValue(uri).setExecutable(true))
         .setValue("./" + basename)
         .build();
-    assertEquals(expectedCommand, CommandUtil.create(uri));
+    assertEquals(expectedCommand, CommandUtil.create(uri, null));
   }
 }

@@ -54,19 +54,20 @@ public final class CommandUtil {
    * @param basePath The base path to the executor
    * @param builder A CommandBuilder to populate
    */
-  public static void create(String executorUri, String wrapperUri, String basePath, CommandInfo.Builder builder) {
-    String uriToAdd = null;
+  public static void create(String executorUri, String wrapperUri,
+                            String basePath, CommandInfo.Builder builder) {
+    String uriToAdd;
 
-    if (wrapperUri != null) {
+    if (wrapperUri != null) { //NOPMD - http://sourceforge.net/p/pmd/bugs/228/
+      MorePreconditions.checkNotBlank(wrapperUri);
       if (executorUri != null) {
         builder.addArguments("--executorUri=" + executorUri);
       }
       uriToAdd = wrapperUri;
-    }
-    else if (wrapperUri == null && executorUri != null) {
+    } else if (executorUri != null) { //NOPMD - http://sourceforge.net/p/pmd/bugs/228/
+      MorePreconditions.checkNotBlank(executorUri);
       uriToAdd = executorUri;
-    }
-    else {
+    } else {
       throw new IllegalArgumentException("At least executorUri or wrapperUri must be non-null");
     }
 
