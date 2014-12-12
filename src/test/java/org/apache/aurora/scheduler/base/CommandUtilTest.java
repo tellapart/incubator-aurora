@@ -17,11 +17,13 @@ import java.util.Map;
 
 import com.google.common.collect.ImmutableMap;
 
+import com.twitter.common.base.Command;
 import org.apache.mesos.Protos.CommandInfo;
 import org.apache.mesos.Protos.CommandInfo.URI;
 import org.junit.Test;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertTrue;
 
 public class CommandUtilTest {
   @Test
@@ -29,6 +31,33 @@ public class CommandUtilTest {
     test("c", "c", ImmutableMap.<String, String>of());
     test("c", "/a/b/c", ImmutableMap.of("FOO", "1"));
     test("foo.zip", "hdfs://twitter.com/path/foo.zip", ImmutableMap.of("PATH", "/bin:/usr/bin"));
+  }
+
+  @Test
+  public void testExecutorOnlyCommand() {
+    CommandInfo cmd = CommandUtil.create("test/executor", null);
+    assertEquals("./executor", cmd.getValue());
+    assertEquals("test/executor", cmd.getUris(0).getValue());
+  }
+
+  @Test
+  public void testWrapperOnlyCommand() {
+    CommandInfo cmd = CommandUtil.create(null, "test/wrapper");
+    assertEquals("./wrapper", cmd.getValue());
+    assertEquals("test/wrapper", cmd.getUris(0).getValue());
+  }
+
+  @Test
+  public void testWrapperAndExecutorCommand() {
+    CommandInfo cmd = CommandUtil.create("test/executor", "test/wrapper");
+    assertEquals("./wrapper", cmd.getValue());
+    assertEquals("test/wrapper", cmd.getUris(0).getValue());
+  }
+
+  @Test(expected = IllegalArgumentException.class)
+  public void testBadParameters()
+  {
+    CommandUtil.create(null, null);
   }
 
   @Test(expected = IllegalArgumentException.class)
