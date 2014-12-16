@@ -30,8 +30,10 @@ from apache.aurora.executor.common.announcer import DefaultAnnouncerCheckerProvi
 from apache.aurora.executor.common.executor_timeout import ExecutorTimeout
 from apache.aurora.executor.common.health_checker import HealthCheckerProvider
 from apache.aurora.executor.common.sandbox import DefaultSandboxProvider
-from apache.aurora.executor.thermos_task_runner import (DefaultThermosTaskRunnerProvider,
-                                                        UserOverrideThermosTaskRunnerProvider)
+from apache.aurora.executor.thermos_task_runner import (
+    DefaultThermosTaskRunnerProvider,
+    UserOverrideThermosTaskRunnerProvider
+)
 
 app.configure(debug=True)
 LogOptions.set_simple(True)

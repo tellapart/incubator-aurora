@@ -202,26 +202,22 @@ enum Mode {
 
 /** Describes a volume mount point within a container */
 struct VolumeConfig {
-  /** Name identifier for the volume config */
-  1: string name
   /** The path the volume should be mounted at inside the container */
-  2: string container_path
+  1: string container_path
   /** The path on the host to mount */
-  3: string host_path
+  2: string host_path
   /** The required access mode */
-  4: Mode mode
+  3: Mode mode
 }
 
 /** Describes a container to be used in a task */
 struct ContainerConfig {
-  /** Name identifier for the container */
-  1: string name
   /** The image to be used */
-  2: string image
+  1: string image
   /** The container type */
-  3: ContainerType type
+  2: ContainerType type
   /** A set of zero or more volumes to mount inside the container */
-  4: set<VolumeConfig> volumes
+  3: set<VolumeConfig> volumes
 }
 
 /** Description of the tasks contained within a job. */

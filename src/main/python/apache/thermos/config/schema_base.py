@@ -62,13 +62,11 @@ class Process(Struct):
                                            # that should always be run after regular processes
 
 class Volume(Struct):
-  name = Default(String, "{{container_path}}")
   container_path = Required(String)
   host_path = Required(String)
   mode = Default(String, "RW")
 
 class Container(Struct):
-  name = Default(String, "{{image}}")
   image = Required(String)
   type = Default(String, "docker")
   volumes = Default(List(Volume), [])

@@ -26,7 +26,6 @@ jobs = [
           environment = 'devel',
           role = 'docker-test',
           name = 'hello_docker',
-          task = hello_world_docker,
-          announce=Announcer()
+          task = hello_world_docker
 )
 ]
