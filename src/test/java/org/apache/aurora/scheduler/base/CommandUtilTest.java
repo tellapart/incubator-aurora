@@ -17,13 +17,12 @@ import java.util.Map;
 
 import com.google.common.collect.ImmutableMap;
 
-import com.twitter.common.base.Command;
 import org.apache.mesos.Protos.CommandInfo;
 import org.apache.mesos.Protos.CommandInfo.URI;
+
 import org.junit.Test;
 
 import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertTrue;
 
 public class CommandUtilTest {
   @Test
@@ -55,8 +54,7 @@ public class CommandUtilTest {
   }
 
   @Test(expected = IllegalArgumentException.class)
-  public void testBadParameters()
-  {
+  public void testBadParameters() {
     CommandUtil.create(null, null);
   }
 

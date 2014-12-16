@@ -290,7 +290,6 @@ public interface MesosTaskFactory {
       );
 
       if (taskConfig.isHasProcesses()) {
-        LOG.info("Configuring thermos to run inside docker container.");
         CommandInfo.Builder commandInfoBuilder = CommandInfo.newBuilder()
             .setShell(false)
             .addArguments("--dockerize");
@@ -310,7 +309,6 @@ public interface MesosTaskFactory {
         taskBuilder
             .setExecutor(execBuilder.build());
       } else {
-        LOG.info("No processes defined, bypassing thermos and running container directly.");
         taskBuilder
             .setContainer(containerBuilder.build());
       }

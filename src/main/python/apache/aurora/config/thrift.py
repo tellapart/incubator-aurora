@@ -127,16 +127,14 @@ def select_service_bit(job):
 def create_container_config(container):
   def make_volume_config(v):
     return VolumeConfig(
-      fully_interpolated(v.name()),
       fully_interpolated(v.container_path()),
       fully_interpolated(v.host_path()),
       parse_enum(Mode, v.mode())
     )
   volumes = [make_volume_config(v) for v in container.volumes()]
-  config = ContainerConfig(fully_interpolated(container.name()),
-                  fully_interpolated(container.image()),
-                  select_container_type(container.type()),
-                  volumes)
+  config = ContainerConfig(fully_interpolated(container.image()),
+                           select_container_type(container.type()),
+                           volumes)
   return config
 
 
@@ -252,7 +250,7 @@ def convert(job, metadata=frozenset(), ports=frozenset()):
   task.hasProcesses = any(task_raw.processes().get())
 
   if not task.container and not task.hasProcesses:
-    raise InvalidConfig('Task %s must have at least one process or a container.' % task.job.name)
+    raise InvalidConfig('Job %s must have at least one process or a container.' % task.job.name)
 
   task.executorConfig = ExecutorConfig(
       name=AURORA_EXECUTOR_NAME,
