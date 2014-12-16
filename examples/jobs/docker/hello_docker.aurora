@@ -15,7 +15,6 @@ hello_world_proc = Process(
 hello_world_docker = Task(
   name = 'hello docker',
   container = Docker(
-    name = 'hello docker',
     image = 'hello-docker'),
   processes = [hello_world_proc],
   resources = Resources(cpu = 1, ram = 1*MB, disk=8*MB)
