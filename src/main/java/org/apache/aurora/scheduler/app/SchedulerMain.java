@@ -196,10 +196,18 @@ public class SchedulerMain extends AbstractApplication {
                 EXECUTOR_OVERHEAD_RAM.get(),
                 Amount.of(0L, Data.MB),
                 0);
+            String thermosExecutorPath = null,
+                thermosExecutorWrapperPath = null;
+            if (THERMOS_EXECUTOR_PATH.hasAppliedValue()) {
+              thermosExecutorPath = THERMOS_EXECUTOR_PATH.get();
+            }
+            if (THERMOS_EXECUTOR_WRAPPER_PATH.hasAppliedValue()) {
+              thermosExecutorWrapperPath = THERMOS_EXECUTOR_WRAPPER_PATH.get();
+            }
             bind(ExecutorSettings.class)
                 .toInstance(new ExecutorSettings(
-                    THERMOS_EXECUTOR_PATH.get(),
-                    THERMOS_EXECUTOR_WRAPPER_PATH.get(),
+                    thermosExecutorPath,
+                    thermosExecutorWrapperPath,
                     THERMOS_OBSERVER_ROOT.get(),
                     executorOverhead));
           }

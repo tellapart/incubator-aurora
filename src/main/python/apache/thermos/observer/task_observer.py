@@ -97,7 +97,7 @@ class TaskObserver(ExceptionalThread, Lockable):
     if not task_monitor.get_state().header:
       log.info('Unable to load task "%s"' % task_id)
       return
-    sandbox = task_monitor.get_state().header.host_sandbox
+    sandbox = task_monitor.get_state().header.sandbox
     resource_monitor = self._resource_monitor(task_monitor, sandbox)
     resource_monitor.start()
     self._active_tasks[task_id] = ActiveObservedTask(
@@ -582,7 +582,7 @@ class TaskObserver(ExceptionalThread, Lockable):
     if run is None:
       return {}
     log_path = self._pathspec.given(task_id=task_id, process=process, run=run,
-                                    log_dir=runner_state.header.host_log_dir).getpath('process_logdir')
+                                    log_dir=runner_state.header.log_dir).getpath('process_logdir')
     return dict(
       stdout=[log_path, 'stdout'],
       stderr=[log_path, 'stderr']
@@ -624,7 +624,7 @@ class TaskObserver(ExceptionalThread, Lockable):
     if runner_state is None or runner_state.header is None:
       return None, None
     try:
-      chroot = runner_state.header.host_sandbox
+      chroot = runner_state.header.sandbox
     except AttributeError:
       return None, None
     chroot, path = self._sanitize_path(chroot, path)

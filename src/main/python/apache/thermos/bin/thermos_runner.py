@@ -93,13 +93,6 @@ app.add_option(
      metavar="NAME:PORT",
      help="bind a numbered port PORT to name NAME")
 
-app.add_option(
-    "--dockerize",
-    action='store_true',
-    dest='dockerize',
-    default=False
-)
-
 def get_task_from_options(opts):
   tasks = ThermosConfigLoader.load_json(opts.thermos_json)
   if len(tasks.tasks()) == 0:
@@ -155,15 +148,6 @@ def proxy_main(args, opts):
     log.error('Unknown user: %s' % user)
     sys.exit(UNKNOWN_USER)
 
-  # if running inside docker, the sandbox directory is relative to inside rather
-  # than outside the container.
-  host_log_dir = None
-  host_sandbox = None
-  if opts.dockerize:
-    host_sandbox = os.environ.get('MESOS_DIRECTORY') + '/sandbox'
-    host_log_dir = host_sandbox + '/.logs'
-    log.info('Remapping log directory to MESOS_DIRECTORY = %s' % host_log_dir)
-
   task_runner = TaskRunner(
       thermos_task.task,
       opts.checkpoint_root,
@@ -172,9 +156,7 @@ def proxy_main(args, opts):
       user=opts.setuid,
       portmap=prebound_ports,
       chroot=opts.chroot,
-      planner_class=CappedTaskPlanner,
-      host_log_dir=host_log_dir,
-      host_sandbox=host_sandbox
+      planner_class=CappedTaskPlanner
   )
 
   for sig in (signal.SIGUSR1, signal.SIGUSR2):

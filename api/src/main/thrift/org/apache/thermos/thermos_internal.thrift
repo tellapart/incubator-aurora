@@ -84,8 +84,6 @@ struct RunnerHeader {
   5: string user
   8: i32    uid             // added as a check in case user disappears
   6: map<string, i64> ports
-  9: string host_sandbox
-  10: string host_log_dir
 }
 
 union RunnerCkpt {
