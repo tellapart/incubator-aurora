@@ -418,8 +418,7 @@ class TaskRunner(object):
 
   def __init__(self, task, checkpoint_root, sandbox, log_dir=None,
                task_id=None, portmap=None, user=None, chroot=False, clock=time,
-               universal_handler=None, planner_class=TaskPlanner, host_log_dir=None,
-               host_sandbox=None):
+               universal_handler=None, planner_class=TaskPlanner):
     """
       required:
         task (config.Task) = the task to run
@@ -463,7 +462,6 @@ class TaskRunner(object):
     self._portmap = portmap or {}
     self._launch_time = launch_time
     self._log_dir = log_dir or os.path.join(sandbox, '.logs')
-    self._host_log_dir = host_log_dir or self._log_dir
     self._pathspec = TaskPath(root=checkpoint_root, task_id=self._task_id, log_dir=self._log_dir)
     try:
       ThermosTaskValidator.assert_valid_task(task)
@@ -489,7 +487,6 @@ class TaskRunner(object):
         process_filter=lambda proc: proc.final().get() is True)
     self._chroot = chroot
     self._sandbox = sandbox
-    self._host_sandbox = host_sandbox or self._sandbox
     self._terminal_state = None
     self._ckpt = None
     self._process_map = dict((p.name().get(), p) for p in self._task.processes())
@@ -624,17 +621,25 @@ class TaskRunner(object):
         # reflected in the process state.
         log.error('Unknown user %s.' % self._user)
         uid = None
+
+      # if running inside docker, the sandbox directory is relative to inside rather
+      # than outside the container.
+      host_log_dir = None
+      host_sandbox = None
+      if os.environ.get('MESOS_DIRECTORY'):
+        host_sandbox = os.environ.get('MESOS_DIRECTORY') + '/sandbox'
+        host_log_dir = host_sandbox + '/.logs'
+        log.info('Remapping log directory to MESOS_DIRECTORY = %s' % host_log_dir)
+
       header = RunnerHeader(
           task_id=self._task_id,
           launch_time_ms=int(self._launch_time * 1000),
-          sandbox=self._sandbox,
-          log_dir=self._log_dir,
+          sandbox=host_sandbox or self._sandbox,
+          log_dir=host_log_dir or self._log_dir,
           hostname=socket.gethostname(),
           user=self._user,
           uid=uid,
-          ports=self._portmap,
-          host_log_dir=self._host_log_dir,
-          host_sandbox=self._host_sandbox)
+          ports=self._portmap)
       runner_ckpt = RunnerCkpt(runner_header=header)
       self._dispatcher.dispatch(self._state, runner_ckpt)
 

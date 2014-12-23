@@ -71,8 +71,7 @@ class ThermosTaskRunner(TaskRunner):
                sandbox,
                checkpoint_root=None,
                artifact_dir=None,
-               clock=time,
-               dockerize=False):
+               clock=time):
     """
       runner_pex       location of the thermos_runner pex that this task runner should use
       task_id          task_id assigned by scheduler
@@ -97,7 +96,6 @@ class ThermosTaskRunner(TaskRunner):
     self._role = role
     self._clock = clock
     self._artifact_dir = artifact_dir or safe_mkdtemp()
-    self._dockerize = dockerize
 
     # wait events
     self._dead = threading.Event()
@@ -255,8 +253,6 @@ class ThermosTaskRunner(TaskRunner):
     cmdline_args.extend('--%s=%s' % (flag, value) for flag, value in params.items())
     if self._enable_chroot:
       cmdline_args.extend(['--enable_chroot'])
-    if self._dockerize:
-      cmdline_args.extend(['--dockerize'])
     for name, port in self._ports.items():
       cmdline_args.extend(['--port=%s:%s' % (name, port)])
     return cmdline_args
@@ -359,8 +355,7 @@ class DefaultThermosTaskRunnerProvider(TaskRunnerProvider):
                max_wait=Amount(1, Time.MINUTES),
                preemption_wait=Amount(1, Time.MINUTES),
                poll_interval=Amount(500, Time.MILLISECONDS),
-               clock=time,
-               dockerize=False):
+               clock=time):
     self._artifact_dir = artifact_dir or safe_mkdtemp()
     self._checkpoint_root = checkpoint_root
     self._clock = clock
@@ -369,7 +364,6 @@ class DefaultThermosTaskRunnerProvider(TaskRunnerProvider):
     self._poll_interval = poll_interval
     self._preemption_wait = preemption_wait
     self._task_runner_class = task_runner_class
-    self._dockerize = dockerize
 
   def _get_role(self, assigned_task):
     return assigned_task.task.job.role if assigned_task.task.job else assigned_task.task.owner.role
@@ -397,8 +391,7 @@ class DefaultThermosTaskRunnerProvider(TaskRunnerProvider):
         sandbox,
         checkpoint_root=self._checkpoint_root,
         artifact_dir=self._artifact_dir,
-        clock=self._clock,
-        dockerize=self._dockerize)
+        clock=self._clock)
 
 class UserOverrideThermosTaskRunnerProvider(DefaultThermosTaskRunnerProvider):
   def set_role(self, role):

@@ -81,14 +81,6 @@ app.add_option(
     default=False
 )
 
-app.add_option(
-    '--dockerize',
-    dest='dockerize',
-    action='store_true',
-    help='Informs the executor that it is now running inside a docker container',
-    default=False
-)
-
 # TODO(wickman) Consider just having the OSS version require pip installed
 # thermos_runner binaries on every machine and instead of embedding the pex
 # as a resource, shell out to one on the PATH.
@@ -126,8 +118,7 @@ def proxy_main():
     if options.execute_as_user or options.execute_as_container:
       thermos_runner_provider = UserOverrideThermosTaskRunnerProvider(
         dump_runner_pex(),
-        artifact_dir=os.path.realpath('.'),
-        dockerize=options.dockerize
+        artifact_dir=os.path.realpath('.')
       )
       if options.execute_as_user:
         thermos_runner_provider.set_role(options.execute_as_user)
