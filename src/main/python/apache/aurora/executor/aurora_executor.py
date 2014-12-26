@@ -12,7 +12,6 @@
 # limitations under the License.
 #
 
-import os
 import threading
 import time
 import traceback

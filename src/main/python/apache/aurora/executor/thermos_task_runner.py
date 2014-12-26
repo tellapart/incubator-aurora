@@ -393,6 +393,7 @@ class DefaultThermosTaskRunnerProvider(TaskRunnerProvider):
         artifact_dir=self._artifact_dir,
         clock=self._clock)
 
+
 class UserOverrideThermosTaskRunnerProvider(DefaultThermosTaskRunnerProvider):
   def set_role(self, role):
     self._role = role
