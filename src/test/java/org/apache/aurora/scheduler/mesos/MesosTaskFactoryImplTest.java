@@ -77,12 +77,14 @@ public class MesosTaskFactoryImplTest {
       .addAllResources(MIN_THERMOS_RESOURCES.toResourceList())
       .setCommand(CommandInfo.newBuilder()
           .setValue("./executor.sh")
+          .setShell(true)
           .addUris(URI.newBuilder().setValue(EXECUTOR_PATH).setExecutable(true)))
       .build();
 
   @Test
   public void testExecutorInfoUnchanged() {
-    config = new ExecutorSettings(EXECUTOR_PATH, null, "/var/run/thermos", SOME_EXECUTOR_OVERHEAD);
+    config = new ExecutorSettings(EXECUTOR_PATH, null, "/var/run/thermos", "", false,
+        SOME_EXECUTOR_OVERHEAD);
     taskFactory = new MesosTaskFactoryImpl(config);
     TaskInfo task = taskFactory.createFrom(TASK, SLAVE);
     assertEquals(DEFAULT_EXECUTOR, task.getExecutor());
@@ -114,7 +116,8 @@ public class MesosTaskFactoryImplTest {
 
   @Test
   public void testCreateFromPortsUnset() {
-    config = new ExecutorSettings(EXECUTOR_PATH, null, "/var/run/thermos", SOME_EXECUTOR_OVERHEAD);
+    config = new ExecutorSettings(EXECUTOR_PATH, null, "/var/run/thermos", "", false,
+        SOME_EXECUTOR_OVERHEAD);
     taskFactory = new MesosTaskFactoryImpl(config);
     AssignedTask assignedTask = TASK.newBuilder();
     assignedTask.unsetAssignedPorts();
@@ -147,7 +150,8 @@ public class MesosTaskFactoryImplTest {
   public void testExecutorInfoNoOverhead() {
     // Here the ram required for the executor is greater than the sum of task resources
     // + executor overhead. We need to ensure we allocate a non-zero amount of ram in this case.
-    config = new ExecutorSettings(EXECUTOR_PATH, null, "/var/run/thermos", NO_EXECUTOR_OVERHEAD);
+    config = new ExecutorSettings(EXECUTOR_PATH, null, "/var/run/thermos", "", false,
+        NO_EXECUTOR_OVERHEAD);
     taskFactory = new MesosTaskFactoryImpl(config);
     TaskInfo task = taskFactory.createFrom(TASK, SLAVE);
     assertEquals(DEFAULT_EXECUTOR, task.getExecutor());

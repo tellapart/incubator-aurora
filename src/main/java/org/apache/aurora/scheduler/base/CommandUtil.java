@@ -47,7 +47,7 @@ public final class CommandUtil {
     CommandInfo.Builder builder = CommandInfo.newBuilder();
     create(executorUri, wrapperUri, "./", builder);
     return builder
-        .setValue(builder.getValue() + " " + extraArguments)
+        .setValue((builder.getValue() + " " + extraArguments).trim())
         .setShell(true)
         .build();
   }
