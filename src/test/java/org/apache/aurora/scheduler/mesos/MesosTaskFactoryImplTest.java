@@ -19,6 +19,8 @@ import com.twitter.common.quantity.Amount;
 import com.twitter.common.quantity.Data;
 
 import org.apache.aurora.gen.AssignedTask;
+import org.apache.aurora.gen.ContainerConfig;
+import org.apache.aurora.gen.ContainerType;
 import org.apache.aurora.gen.Identity;
 import org.apache.aurora.gen.JobKey;
 import org.apache.aurora.gen.TaskConfig;
@@ -54,6 +56,17 @@ public class MesosTaskFactoryImplTest {
           .setRamMb(100)
           .setNumCpus(5)
           .setRequestedPorts(ImmutableSet.of("http"))));
+  private static final IAssignedTask TASK_WITH_DOCKER = IAssignedTask.build(TASK.newBuilder()
+      .setTask(
+          new TaskConfig(TASK.getTask().newBuilder())
+              .setContainer(
+                  new ContainerConfig()
+                      .setImage("testimage")
+                      .setType(ContainerType.DOCKER)
+              )
+      )
+  );
+
   private static final SlaveID SLAVE = SlaveID.newBuilder().setValue("slave-id").build();
   private static final Resources SOME_EXECUTOR_OVERHEAD = new Resources(
       0.01,
@@ -188,6 +201,15 @@ public class MesosTaskFactoryImplTest {
     assertEquals(result.getRam(), Amount.of(8L, Data.GB));
     assertEquals(result.getDisk(), Amount.of(10L, Data.GB));
     assertEquals(result.getNumPorts(), 1);
+  }
+
+  @Test
+  public void testDockerContainer() {
+    config = new ExecutorSettings(EXECUTOR_PATH, null, "/var/run/thermos", "", false,
+        SOME_EXECUTOR_OVERHEAD);
+    taskFactory = new MesosTaskFactoryImpl(config);
+    TaskInfo task = taskFactory.createFrom(TASK_WITH_DOCKER, SLAVE);
+    assertEquals("testimage", task.getExecutor().getContainer().getDocker().getImage());
   }
 
 }
