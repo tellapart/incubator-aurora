@@ -72,6 +72,7 @@ public class CommandUtilTest {
     CommandInfo expectedCommand = CommandInfo.newBuilder()
         .addUris(URI.newBuilder().setValue(uri).setExecutable(true))
         .setValue("./" + basename)
+        .setShell(true)
         .build();
     assertEquals(expectedCommand, CommandUtil.create(uri, null));
   }

@@ -46,8 +46,9 @@ public final class CommandUtil {
   public static CommandInfo create(String executorUri, String wrapperUri, String extraArguments) {
     CommandInfo.Builder builder = CommandInfo.newBuilder();
     create(executorUri, wrapperUri, "./", builder);
+    String cmdLine = builder.getValue() + " " + extraArguments;
     return builder
-        .setValue((builder.getValue() + " " + extraArguments).trim())
+        .setValue(cmdLine.trim())
         .setShell(true)
         .build();
   }
