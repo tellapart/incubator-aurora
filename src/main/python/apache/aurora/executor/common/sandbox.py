@@ -62,7 +62,7 @@ class DefaultSandboxProvider(SandboxProvider):
 
   def from_assigned_task(self, assigned_task):
     return DirectorySandbox(
-      os.path.realpath(self.SANDBOX_NAME),
+      os.path.abspath(self.SANDBOX_NAME),
       self._get_sandbox_user(assigned_task))
 
 class DirectorySandbox(SandboxInterface):
