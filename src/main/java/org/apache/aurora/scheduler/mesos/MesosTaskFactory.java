@@ -71,12 +71,14 @@ public interface MesosTaskFactory {
     private final String wrapperPath;
     private final String thermosObserverRoot;
     private final String extraArgs;
+    private final Boolean allowDockerMounts;
     private final Resources executorOverhead;
 
     public ExecutorSettings(String executorPath,
                             String wrapperPath,
                             String thermosObserverRoot,
                             String extraArgs,
+                            Boolean allowDockerMounts,
                             Resources executorOverhead) {
       if (executorPath == null && wrapperPath == null) {
         throw new NullPointerException();
@@ -85,6 +87,7 @@ public interface MesosTaskFactory {
       this.wrapperPath = wrapperPath;
       this.thermosObserverRoot = thermosObserverRoot;
       this.extraArgs = extraArgs;
+      this.allowDockerMounts = allowDockerMounts;
       this.executorOverhead = requireNonNull(executorOverhead);
     }
 
@@ -102,6 +105,10 @@ public interface MesosTaskFactory {
 
     String getExtraArgs() {
       return extraArgs;
+    }
+
+    Boolean getAllowDockerMounts() {
+      return allowDockerMounts;
     }
 
     Resources getExecutorOverhead() {
@@ -141,22 +148,12 @@ public interface MesosTaskFactory {
      */
     @VisibleForTesting
     static final String EXECUTOR_NAME = "aurora.task";
-    @VisibleForTesting
-    static final String MESOS_DOCKER_MOUNT_ROOT = "$MESOS_SANDBOX/";
 
-    private final String executorPath;
-    private final String wrapperPath;
-    private final String thermosObserverRoot;
-    private final String extraArgs;
-    private final Resources executorOverhead;
+    private final ExecutorSettings executorSettings;
 
     @Inject
     MesosTaskFactoryImpl(ExecutorSettings executorSettings) {
-      this.executorPath = executorSettings.getExecutorPath();
-      this.wrapperPath = executorSettings.getWrapperPath();
-      this.thermosObserverRoot = executorSettings.getThermosObserverRoot();
-      this.extraArgs = executorSettings.getExtraArgs();
-      this.executorOverhead = executorSettings.getExecutorOverhead();
+      this.executorSettings = executorSettings;
     }
 
     @VisibleForTesting
@@ -222,7 +219,8 @@ public interface MesosTaskFactory {
 
       ITaskConfig config = task.getTask();
       Resources taskResources = Resources.from(config);
-      Resources containerResources = Resources.sum(taskResources, executorOverhead);
+      Resources containerResources = Resources.sum(taskResources,
+          executorSettings.getExecutorOverhead());
 
       taskResources = Resources.subtract(containerResources, MIN_THERMOS_RESOURCES);
       // It is possible that the final task resources will be negative.
@@ -261,7 +259,10 @@ public interface MesosTaskFactory {
     private ExecutorInfo.Builder configureTaskForExecutor(IAssignedTask task,
                                                           ITaskConfig config) {
       ExecutorInfo.Builder executor = ExecutorInfo.newBuilder()
-          .setCommand(CommandUtil.create(executorPath, wrapperPath, extraArgs))
+          .setCommand(CommandUtil.create(
+              executorSettings.getExecutorPath(),
+              executorSettings.getWrapperPath(),
+              executorSettings.getExtraArgs()))
           .setExecutorId(getExecutorId(task.getTaskId()))
           .setName(EXECUTOR_NAME)
           .setSource(getInstanceSourceName(config, task.getInstanceId()))
@@ -281,37 +282,44 @@ public interface MesosTaskFactory {
           .setType(ContainerInfo.Type.DOCKER)
           .setDocker(dockerBuilder.build());
 
-      for (IVolumeConfig v : config.getVolumes()) {
-        Volume volume = Volume.newBuilder()
-            .setContainerPath(v.getContainer_path())
-            .setHostPath(v.getHost_path())
-            .setMode(Volume.Mode.valueOf(v.getMode().getValue()))
-            .build();
-        containerBuilder.addVolumes(volume);
+      if (executorSettings.getAllowDockerMounts()) {
+        for (IVolumeConfig v : config.getVolumes()) {
+          Volume volume = Volume.newBuilder()
+              .setContainerPath(v.getContainer_path())
+              .setHostPath(v.getHost_path())
+              .setMode(Volume.Mode.valueOf(v.getMode().getValue()))
+              .build();
+          containerBuilder.addVolumes(volume);
+        }
       }
 
       containerBuilder.addVolumes(
           Volume.newBuilder()
-              .setContainerPath(thermosObserverRoot)
-              .setHostPath(thermosObserverRoot)
+              .setContainerPath(executorSettings.getThermosObserverRoot())
+              .setHostPath(executorSettings.getThermosObserverRoot())
               .setMode(Volume.Mode.RW)
               .build()
       );
 
       CommandInfo.Builder commandInfoBuilder = CommandInfo.newBuilder()
           .setShell(true);
-      if (executorPath != null && wrapperPath != null) {
+      if (executorSettings.getExecutorPath() != null
+          && executorSettings.getWrapperPath() != null) {
         commandInfoBuilder.addUris(CommandInfo.URI.newBuilder()
-                .setValue(executorPath)
+                .setValue(executorSettings.getExecutorPath())
                 .setExecutable(true)
         );
       }
-      CommandUtil.create(executorPath, wrapperPath, "./", commandInfoBuilder);
+      CommandUtil.create(
+          executorSettings.getExecutorPath(),
+          executorSettings.getWrapperPath(),
+          "./",
+          commandInfoBuilder);
       commandInfoBuilder.setValue(
           "mkdir -p `dirname $MESOS_DIRECTORY` && "
         + "ln -s $MESOS_SANDBOX $MESOS_DIRECTORY && "
         + "cd $MESOS_DIRECTORY && "
-        + "exec " + commandInfoBuilder.getValue() + " --nosetuid " + extraArgs
+        + "exec " + commandInfoBuilder.getValue() + " --nosetuid " + executorSettings.getExtraArgs()
       );
 
       ExecutorInfo.Builder execBuilder =

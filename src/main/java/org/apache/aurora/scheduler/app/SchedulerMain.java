@@ -119,6 +119,10 @@ public class SchedulerMain extends AbstractApplication {
   @CmdLine(name = "viz_job_url_prefix", help = "URL prefix for job container stats.")
   private static final Arg<String> STATS_URL_PREFIX = Arg.create("");
 
+  @CmdLine(name = "allow_docker_mounts", help = "Allows docker jobs to create bind mounts"
+                                              + "in their configuration")
+  private static final Arg<Boolean> ALLOW_DOCKER_MOUNTS = Arg.create(false);
+
   @Inject private SingletonService schedulerService;
   @Inject private LocalServiceRegistry serviceRegistry;
   @Inject private SchedulerLifecycle schedulerLifecycle;
@@ -200,8 +204,8 @@ public class SchedulerMain extends AbstractApplication {
                 EXECUTOR_OVERHEAD_RAM.get(),
                 Amount.of(0L, Data.MB),
                 0);
-            String thermosExecutorPath = null,
-                thermosExecutorWrapperPath = null;
+            String thermosExecutorPath = null;
+            String thermosExecutorWrapperPath = null;
             if (THERMOS_EXECUTOR_PATH.hasAppliedValue()) {
               thermosExecutorPath = THERMOS_EXECUTOR_PATH.get();
             }
@@ -219,6 +223,7 @@ public class SchedulerMain extends AbstractApplication {
                     thermosExecutorWrapperPath,
                     THERMOS_OBSERVER_ROOT.get(),
                     THERMOS_EXECUTOR_EXTRA_ARGS.get(),
+                    ALLOW_DOCKER_MOUNTS.get(),
                     executorOverhead));
           }
         })
