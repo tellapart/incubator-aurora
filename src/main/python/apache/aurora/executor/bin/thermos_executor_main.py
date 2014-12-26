@@ -88,7 +88,7 @@ def dump_runner_pex():
   import pkg_resources
   import apache.aurora.executor.resources
   pex_name = 'thermos_runner.pex'
-  runner_pex = os.path.join(os.path.realpath('.'), pex_name)
+  runner_pex = os.path.join(os.path.abspath('.'), pex_name)
   with open(runner_pex, 'w') as fp:
     # TODO(wickman) Use shutil.copyfileobj to reduce memory footprint here.
     fp.write(pkg_resources.resource_stream(
@@ -118,7 +118,7 @@ def proxy_main():
     if options.execute_as_user or options.nosetuid:
       thermos_runner_provider = UserOverrideThermosTaskRunnerProvider(
         dump_runner_pex(),
-        artifact_dir=os.path.realpath('.')
+        artifact_dir=os.path.abspath('.')
       )
       thermos_runner_provider.set_role(None)
 
@@ -130,7 +130,7 @@ def proxy_main():
     else:
       thermos_runner_provider = DefaultThermosTaskRunnerProvider(
         dump_runner_pex(),
-        artifact_dir=os.path.realpath('.')
+        artifact_dir=os.path.abspath('.')
       )
 
       thermos_executor = AuroraExecutor(
