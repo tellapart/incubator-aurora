@@ -208,6 +208,8 @@ public class SchedulerIT extends BaseZooKeeperTest {
                 "/executor/thermos",
                 null,
                 "/var/run/thermos",
+                "",
+                false,
                 executorOverhead));
         install(new BackupModule(backupDir, SnapshotStoreImpl.class));
       }
