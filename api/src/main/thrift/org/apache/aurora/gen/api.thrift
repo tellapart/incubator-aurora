@@ -258,11 +258,6 @@ struct TaskConfig {
  25: optional ExecutorConfig executorConfig
  /** Used to display additional details in the UI. */
  27: optional set<Metadata> metadata
- /**
-  * set if any processes were defined for this task, used to determine how to launch the
-  * task and container.
- **/
- 30: bool hasProcesses
 }
 
 /** Defines the policy for launching a new cron job when one is already running. */

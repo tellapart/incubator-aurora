@@ -40,9 +40,16 @@ public final class CommandUtil {
   }
 
   public static CommandInfo create(String executorUri, String wrapperUri) {
+    return create(executorUri, wrapperUri, "");
+  }
+
+  public static CommandInfo create(String executorUri, String wrapperUri, String extraArguments) {
     CommandInfo.Builder builder = CommandInfo.newBuilder();
     create(executorUri, wrapperUri, "./", builder);
-    return builder.build();
+    return builder
+        .setValue(builder.getValue() + " " + extraArguments)
+        .setShell(true)
+        .build();
   }
 
   /**
@@ -60,9 +67,6 @@ public final class CommandUtil {
 
     if (wrapperUri != null) { //NOPMD - http://sourceforge.net/p/pmd/bugs/228/
       MorePreconditions.checkNotBlank(wrapperUri);
-      if (executorUri != null) {
-        builder.addArguments("--executorUri=" + executorUri);
-      }
       uriToAdd = wrapperUri;
     } else if (executorUri != null) { //NOPMD - http://sourceforge.net/p/pmd/bugs/228/
       MorePreconditions.checkNotBlank(executorUri);

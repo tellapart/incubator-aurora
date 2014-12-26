@@ -247,11 +247,6 @@ def convert(job, metadata=frozenset(), ports=frozenset()):
   if unbound:
     raise InvalidConfig('Config contains unbound variables: %s' % ' '.join(map(str, unbound)))
 
-  task.hasProcesses = any(task_raw.processes().get())
-
-  if not task.container and not task.hasProcesses:
-    raise InvalidConfig('Job %s must have at least one process or a container.' % task.job.name)
-
   task.executorConfig = ExecutorConfig(
       name=AURORA_EXECUTOR_NAME,
       data=filter_aliased_fields(underlying).json_dumps())

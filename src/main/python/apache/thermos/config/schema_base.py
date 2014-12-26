@@ -75,7 +75,7 @@ Docker = Container(type="docker")
 
 class Task(Struct):
   name = Default(String, '{{processes[0].name}}')
-  processes = Default(List(Process), [])
+  processes = List(Process)
 
   # optionals
   constraints = Default(List(Constraint), [])

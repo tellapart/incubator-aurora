@@ -74,8 +74,8 @@ app.add_option(
 )
 
 app.add_option(
-    '--execute-as-container',
-    dest='execute_as_container',
+    '--nosetuid',
+    dest='nosetuid',
     action='store_true',
     help='If set, the executor will not attempt to change users when running thermos_runner',
     default=False
@@ -115,15 +115,12 @@ def proxy_main():
           options.announcer_ensemble, options.announcer_serverset_path))
 
     # Create executor stub
-    if options.execute_as_user or options.execute_as_container:
+    if options.execute_as_user or options.nosetuid:
       thermos_runner_provider = UserOverrideThermosTaskRunnerProvider(
         dump_runner_pex(),
         artifact_dir=os.path.realpath('.')
       )
-      if options.execute_as_user:
-        thermos_runner_provider.set_role(options.execute_as_user)
-      else: # execute_as_container || dockerize
-        thermos_runner_provider.set_role(None)
+      thermos_runner_provider.set_role(None)
 
       thermos_executor = AuroraExecutor(
           runner_provider=thermos_runner_provider,
@@ -133,8 +130,7 @@ def proxy_main():
     else:
       thermos_runner_provider = DefaultThermosTaskRunnerProvider(
         dump_runner_pex(),
-        artifact_dir=os.path.realpath('.'),
-        dockerize=options.dockerize
+        artifact_dir=os.path.realpath('.')
       )
 
       thermos_executor = AuroraExecutor(
