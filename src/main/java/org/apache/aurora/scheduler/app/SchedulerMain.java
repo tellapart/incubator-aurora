@@ -95,6 +95,10 @@ public class SchedulerMain extends AbstractApplication {
                                                + "(by default /var/run/thermos.)")
   private static final Arg<String> THERMOS_OBSERVER_ROOT = Arg.create("/var/run/thermos");
 
+  @CmdLine(name = "thermos_executor_extra_args", help = "Extra arguments to be passed to"
+                                                    + " the thermos executor")
+  private static  final Arg<String> THERMOS_EXECUTOR_EXTRA_ARGS = Arg.create("");
+
   @CmdLine(name = "auth_module",
       help = "A Guice module to provide auth bindings. NOTE: The default is unsecure.")
   private static final Arg<? extends Class<? extends Module>> AUTH_MODULE =
@@ -204,11 +208,17 @@ public class SchedulerMain extends AbstractApplication {
             if (THERMOS_EXECUTOR_WRAPPER_PATH.hasAppliedValue()) {
               thermosExecutorWrapperPath = THERMOS_EXECUTOR_WRAPPER_PATH.get();
             }
+            if (thermosExecutorPath == null && thermosExecutorWrapperPath == null) {
+              throw new IllegalStateException(
+                  "At least one of thermos_executor_path or "
+                  + "thermos_executor_wrapper_path must be set.");
+            }
             bind(ExecutorSettings.class)
                 .toInstance(new ExecutorSettings(
                     thermosExecutorPath,
                     thermosExecutorWrapperPath,
                     THERMOS_OBSERVER_ROOT.get(),
+                    THERMOS_EXECUTOR_EXTRA_ARGS.get(),
                     executorOverhead));
           }
         })

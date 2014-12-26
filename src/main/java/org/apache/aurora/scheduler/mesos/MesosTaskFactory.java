@@ -70,11 +70,13 @@ public interface MesosTaskFactory {
     private final String executorPath;
     private final String wrapperPath;
     private final String thermosObserverRoot;
+    private final String extraArgs;
     private final Resources executorOverhead;
 
     public ExecutorSettings(String executorPath,
                             String wrapperPath,
                             String thermosObserverRoot,
+                            String extraArgs,
                             Resources executorOverhead) {
       if (executorPath == null && wrapperPath == null) {
         throw new NullPointerException();
@@ -82,6 +84,7 @@ public interface MesosTaskFactory {
       this.executorPath = executorPath;
       this.wrapperPath = wrapperPath;
       this.thermosObserverRoot = thermosObserverRoot;
+      this.extraArgs = extraArgs;
       this.executorOverhead = requireNonNull(executorOverhead);
     }
 
@@ -95,6 +98,10 @@ public interface MesosTaskFactory {
 
     String getThermosObserverRoot() {
       return thermosObserverRoot;
+    }
+
+    String getExtraArgs() {
+      return extraArgs;
     }
 
     Resources getExecutorOverhead() {
@@ -135,11 +142,12 @@ public interface MesosTaskFactory {
     @VisibleForTesting
     static final String EXECUTOR_NAME = "aurora.task";
     @VisibleForTesting
-    static final String MESOS_DOCKER_MOUNT_ROOT = "/mnt/mesos/sandbox/";
+    static final String MESOS_DOCKER_MOUNT_ROOT = "$MESOS_SANDBOX/";
 
     private final String executorPath;
     private final String wrapperPath;
     private final String thermosObserverRoot;
+    private final String extraArgs;
     private final Resources executorOverhead;
 
     @Inject
@@ -147,6 +155,7 @@ public interface MesosTaskFactory {
       this.executorPath = executorSettings.getExecutorPath();
       this.wrapperPath = executorSettings.getWrapperPath();
       this.thermosObserverRoot = executorSettings.getThermosObserverRoot();
+      this.extraArgs = executorSettings.getExtraArgs();
       this.executorOverhead = executorSettings.getExecutorOverhead();
     }
 
@@ -252,7 +261,7 @@ public interface MesosTaskFactory {
     private ExecutorInfo.Builder configureTaskForExecutor(IAssignedTask task,
                                                           ITaskConfig config) {
       ExecutorInfo.Builder executor = ExecutorInfo.newBuilder()
-          .setCommand(CommandUtil.create(executorPath, wrapperPath))
+          .setCommand(CommandUtil.create(executorPath, wrapperPath, extraArgs))
           .setExecutorId(getExecutorId(task.getTaskId()))
           .setName(EXECUTOR_NAME)
           .setSource(getInstanceSourceName(config, task.getInstanceId()))
@@ -289,29 +298,30 @@ public interface MesosTaskFactory {
               .build()
       );
 
-      if (taskConfig.isHasProcesses()) {
-        CommandInfo.Builder commandInfoBuilder = CommandInfo.newBuilder()
-            .setShell(false)
-            .addArguments("--dockerize");
-        if (executorPath != null && wrapperPath != null) {
-          commandInfoBuilder.addUris(CommandInfo.URI.newBuilder()
-                  .setValue(executorPath)
-                  .setExecutable(true)
-          );
-        }
-        CommandUtil.create(executorPath, wrapperPath, MESOS_DOCKER_MOUNT_ROOT, commandInfoBuilder);
-
-        ExecutorInfo.Builder execBuilder =
-            configureTaskForExecutor(task, taskConfig)
-                .setCommand(commandInfoBuilder.build())
-                .setContainer(containerBuilder.build());
-
-        taskBuilder
-            .setExecutor(execBuilder.build());
-      } else {
-        taskBuilder
-            .setContainer(containerBuilder.build());
+      CommandInfo.Builder commandInfoBuilder = CommandInfo.newBuilder()
+          .setShell(true);
+      if (executorPath != null && wrapperPath != null) {
+        commandInfoBuilder.addUris(CommandInfo.URI.newBuilder()
+                .setValue(executorPath)
+                .setExecutable(true)
+        );
       }
+      CommandUtil.create(executorPath, wrapperPath, "./", commandInfoBuilder);
+      commandInfoBuilder.setValue(
+          "mkdir -p `dirname $MESOS_DIRECTORY` && "
+        + "ln -s $MESOS_SANDBOX $MESOS_DIRECTORY && "
+        + "cd $MESOS_DIRECTORY && "
+        + "exec " + commandInfoBuilder.getValue() + " --nosetuid " + extraArgs
+      );
+
+      ExecutorInfo.Builder execBuilder =
+          configureTaskForExecutor(task, taskConfig)
+              .setCommand(commandInfoBuilder.build())
+              .setContainer(containerBuilder.build());
+
+      taskBuilder
+          .setExecutor(execBuilder.build());
+
     }
   }
 }
