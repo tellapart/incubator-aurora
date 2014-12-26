@@ -1,21 +1,16 @@
-pkg_path = '/vagrant/examples/jobs/docker/hello_docker.py'
-
-# we use a trick here to make the configuration change with
-# the contents of the file, for simplicity.  in a normal setting, packages would be
-# versioned, and the version number would be changed in the configuration.
-import hashlib
-with open(pkg_path, 'rb') as f:
-  pkg_checksum = hashlib.md5(f.read()).hexdigest()
-
-# run the script
 hello_world_proc = Process(
-  name = 'hello_world',
-  cmdline = 'python /tmp/hello_docker.py')
+      name="hello_process",
+      cmdline="""
+while true; do
+    echo -n "Hello world! The time is now: " && date
+    sleep 10
+done
+""")
 
 hello_world_docker = Task(
   name = 'hello docker',
   container = Docker(
-    image = 'hello-docker'),
+    image = 'python:2.7'),
   processes = [hello_world_proc],
   resources = Resources(cpu = 1, ram = 1*MB, disk=8*MB)
 )
