@@ -57,6 +57,7 @@ class SandboxProvider(Interface):
   def from_assigned_task(self, assigned_task):
     """Return the appropriate Sandbox implementation from an AssignedTask."""
 
+
 class DefaultSandboxProvider(SandboxProvider):
   SANDBOX_NAME = 'sandbox'
 
@@ -64,6 +65,7 @@ class DefaultSandboxProvider(SandboxProvider):
     return DirectorySandbox(
       os.path.abspath(self.SANDBOX_NAME),
       self._get_sandbox_user(assigned_task))
+
 
 class DirectorySandbox(SandboxInterface):
   """ Basic sandbox implementation using a directory on the filesystem """

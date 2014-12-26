@@ -93,6 +93,7 @@ app.add_option(
      metavar="NAME:PORT",
      help="bind a numbered port PORT to name NAME")
 
+
 def get_task_from_options(opts):
   tasks = ThermosConfigLoader.load_json(opts.thermos_json)
   if len(tasks.tasks()) == 0:

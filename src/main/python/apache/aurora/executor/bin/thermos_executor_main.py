@@ -81,6 +81,7 @@ app.add_option(
     default=False
 )
 
+
 # TODO(wickman) Consider just having the OSS version require pip installed
 # thermos_runner binaries on every machine and instead of embedding the pex
 # as a resource, shell out to one on the PATH.
@@ -102,6 +103,7 @@ class UserOverrideDirectorySandboxProvider(DefaultSandboxProvider):
 
   def _get_sandbox_user(self, assigned_task):
     return self._user_override
+
 
 def proxy_main():
   def main(args, options):
