@@ -73,13 +73,12 @@ EOF
 
   cat <<'EOF' > $DIST_DIR/thermos_executor.sh
 #!/usr/bin/env bash
-
-if [ "$1" == "--dockerize" ]; then
-	cd $MESOS_SANDBOX
-	exec $MESOS_SANDBOX/thermos_executor.pex --announcer-enable --announcer-ensemble localhost:2181 --execute-as-container --dockerize
+if [ -x ./thermos_executor.pex ]; then
+  EXECUTOR_DIR="./"
 else
-	exec /home/vagrant/aurora/dist/thermos_executor.pex --announcer-enable --announcer-ensemble localhost:2181
+  EXECUTOR_DIR="/home/vagrant/aurora/dist/"
 fi
+exec $EXECUTOR_DIR/thermos_executor.pex "$@"
 EOF
   chmod +x $DIST_DIR/thermos_executor.sh
   chmod +x /home/vagrant/aurora/dist/thermos_executor.pex
