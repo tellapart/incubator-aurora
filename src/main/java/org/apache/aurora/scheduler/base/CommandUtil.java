@@ -13,6 +13,7 @@
  */
 package org.apache.aurora.scheduler.base;
 
+import com.google.common.base.Objects;
 import com.twitter.common.base.MorePreconditions;
 
 import org.apache.mesos.Protos.CommandInfo;
@@ -27,7 +28,13 @@ public final class CommandUtil {
     // Utility class.
   }
 
-  private static String uriBasename(String uri) {
+  /**
+   * Gets the last part of the path of a URI.
+   *
+   * @param uri URI to parse
+   * @return The last segment of the URI.
+   */
+  public static String uriBasename(String uri) {
     int lastSlash = uri.lastIndexOf('/');
     if (lastSlash == -1) {
       return uri;
@@ -39,18 +46,43 @@ public final class CommandUtil {
     }
   }
 
+  /**
+   * Creates a description of a command that will fetch and execute the given URI to an executor
+   * binary.
+   *
+   * @param executorUri A URI to the executor
+   * @param wrapperUri A URI to the wrapper
+   * @return A populated CommandInfo with correct resources set and command set.
+   */
   public static CommandInfo create(String executorUri, String wrapperUri) {
-    return create(executorUri, wrapperUri, "");
+    return create(executorUri, wrapperUri, null, null, null).build();
   }
 
-  public static CommandInfo create(String executorUri, String wrapperUri, String extraArguments) {
+  /**
+   * Creates a description of a command that will fetch and execute the given URI to an executor
+   * binary.
+   *
+   * @param executorUri A optional URI to the executor
+   * @param wrapperUri An optional URI to the wrapper
+   * @param commandPrefix An option string to prefix the generated command with
+   * @param commandSuffix An optional string to suffix the generated command with
+   * @param extraArguments Extra command line arguments to add to the generated command.
+   * @return A CommandInfo.Builder populated with resources and a command.
+   */
+  public static CommandInfo.Builder create(String executorUri,
+                                   String wrapperUri,
+                                   String commandPrefix,
+                                   String commandSuffix,
+                                   String extraArguments) {
     CommandInfo.Builder builder = CommandInfo.newBuilder();
-    create(executorUri, wrapperUri, "./", builder);
-    String cmdLine = builder.getValue() + " " + extraArguments;
+    populate(executorUri, wrapperUri, "./", builder);
+    String cmdLine = Objects.firstNonNull(commandPrefix, "")
+        + builder.getValue()
+        + Objects.firstNonNull(commandSuffix, "")
+        + " " + Objects.firstNonNull(extraArguments, "");
     return builder
         .setValue(cmdLine.trim())
-        .setShell(true)
-        .build();
+        .setShell(true);
   }
 
   /**
@@ -62,7 +94,7 @@ public final class CommandUtil {
    * @param basePath The base path to the executor
    * @param builder A CommandBuilder to populate
    */
-  public static void create(String executorUri, String wrapperUri,
+  public static void populate(String executorUri, String wrapperUri,
                             String basePath, CommandInfo.Builder builder) {
     String uriToAdd;
 
