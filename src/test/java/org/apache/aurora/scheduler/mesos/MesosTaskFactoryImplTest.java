@@ -89,7 +89,7 @@ public class MesosTaskFactoryImplTest {
       .setSource(MesosTaskFactoryImpl.getInstanceSourceName(TASK.getTask(), TASK.getInstanceId()))
       .addAllResources(MIN_THERMOS_RESOURCES.toResourceList())
       .setCommand(CommandInfo.newBuilder()
-          .setValue("./executor.sh")
+          .setValue("ln -s /twitter/fake/executor.sh ./executor.sh && ./executor.sh")
           .setShell(true)
           .addUris(URI.newBuilder().setValue(EXECUTOR_PATH).setExecutable(true)))
       .build();

@@ -149,6 +149,13 @@ public interface MesosTaskFactory {
     @VisibleForTesting
     static final String EXECUTOR_NAME = "aurora.task";
 
+    private static final String DOCKER_COMMAND_PREFIX =
+        "mkdir -p `dirname $MESOS_DIRECTORY` && "
+      + "ln -s $MESOS_SANDBOX $MESOS_DIRECTORY && "
+      + "cd $MESOS_DIRECTORY && ";
+
+    private static final String DOCKER_COMMAND_SUFFIX = " --nosetuid";
+
     private final ExecutorSettings executorSettings;
 
     @Inject
@@ -246,34 +253,36 @@ public interface MesosTaskFactory {
               .setData(ByteString.copyFrom(taskInBytes));
 
       if (config.getContainer() == null) {
-        taskBuilder.setExecutor(
-            configureTaskForExecutor(task, config).build()
-        );
+        configureTaskForNoContainer(task, config, taskBuilder);
       } else {
-        configureTaskForContainerizing(task, config, taskBuilder);
+        configureTaskForContainer(task, config, taskBuilder);
       }
 
       return taskBuilder.build();
     }
 
-    private ExecutorInfo.Builder configureTaskForExecutor(IAssignedTask task,
-                                                          ITaskConfig config) {
-      ExecutorInfo.Builder executor = ExecutorInfo.newBuilder()
-          .setCommand(CommandUtil.create(
-              executorSettings.getExecutorPath(),
-              executorSettings.getWrapperPath(),
-              executorSettings.getExtraArgs()))
-          .setExecutorId(getExecutorId(task.getTaskId()))
-          .setName(EXECUTOR_NAME)
-          .setSource(getInstanceSourceName(config, task.getInstanceId()))
-          .addAllResources(MIN_THERMOS_RESOURCES.toResourceList());
+    private void configureTaskForNoContainer(IAssignedTask task, ITaskConfig config,
+                                             TaskInfo.Builder taskBuilder) {
+      String commandPrefix =
+          "ln -s "
+          + executorSettings.getExecutorPath()
+          + " ./" + CommandUtil.uriBasename(executorSettings.getExecutorPath())
+          + " && ";
+      CommandInfo commandInfo = CommandUtil.create(
+          executorSettings.getExecutorPath(),
+          executorSettings.getWrapperPath(),
+          commandPrefix,
+          null,
+          executorSettings.getExtraArgs()).build();
 
-      return executor;
+      ExecutorInfo.Builder executorBuilder =
+          configureTaskForExecutor(task, config, commandInfo);
+      taskBuilder.setExecutor(executorBuilder.build());
     }
 
-    private void configureTaskForContainerizing(IAssignedTask task,
-                                                ITaskConfig taskConfig,
-                                                TaskInfo.Builder taskBuilder) {
+    private void configureTaskForContainer(IAssignedTask task,
+                                           ITaskConfig taskConfig,
+                                           TaskInfo.Builder taskBuilder) {
       IContainerConfig config = taskConfig.getContainer();
       ContainerInfo.DockerInfo.Builder dockerBuilder = ContainerInfo.DockerInfo.newBuilder()
           .setImage(config.getImage());
@@ -282,6 +291,52 @@ public interface MesosTaskFactory {
           .setType(ContainerInfo.Type.DOCKER)
           .setDocker(dockerBuilder.build());
 
+      configureContainerVolumes(config, containerBuilder);
+
+      CommandInfo.Builder commandInfoBuilder = configureContainerCommandInfo();
+
+      ExecutorInfo.Builder execBuilder =
+          configureTaskForExecutor(task, taskConfig, commandInfoBuilder.build())
+              .setContainer(containerBuilder.build());
+
+      taskBuilder
+          .setExecutor(execBuilder.build());
+
+    }
+
+    private ExecutorInfo.Builder configureTaskForExecutor(IAssignedTask task,
+                                                          ITaskConfig config,
+                                                          CommandInfo commandInfo) {
+      ExecutorInfo.Builder executor = ExecutorInfo.newBuilder()
+          .setCommand(commandInfo)
+          .setExecutorId(getExecutorId(task.getTaskId()))
+          .setName(EXECUTOR_NAME)
+          .setSource(getInstanceSourceName(config, task.getInstanceId()))
+          .addAllResources(MIN_THERMOS_RESOURCES.toResourceList());
+
+      return executor;
+    }
+
+    private CommandInfo.Builder configureContainerCommandInfo() {
+      CommandInfo.Builder commandInfoBuilder = CommandUtil.create(
+          executorSettings.getExecutorPath(),
+          executorSettings.getWrapperPath(),
+          DOCKER_COMMAND_PREFIX,
+          DOCKER_COMMAND_SUFFIX,
+          executorSettings.getExtraArgs()
+      );
+      if (executorSettings.getExecutorPath() != null
+          && executorSettings.getWrapperPath() != null) {
+        commandInfoBuilder.addUris(CommandInfo.URI.newBuilder()
+                .setValue(executorSettings.getExecutorPath())
+                .setExecutable(true)
+        );
+      }
+      return commandInfoBuilder;
+    }
+
+    private void configureContainerVolumes(IContainerConfig config,
+                                           ContainerInfo.Builder containerBuilder) {
       if (executorSettings.getAllowDockerMounts()) {
         for (IVolumeConfig v : config.getVolumes()) {
           Volume volume = Volume.newBuilder()
@@ -300,36 +355,6 @@ public interface MesosTaskFactory {
               .setMode(Volume.Mode.RW)
               .build()
       );
-
-      CommandInfo.Builder commandInfoBuilder = CommandInfo.newBuilder()
-          .setShell(true);
-      if (executorSettings.getExecutorPath() != null
-          && executorSettings.getWrapperPath() != null) {
-        commandInfoBuilder.addUris(CommandInfo.URI.newBuilder()
-                .setValue(executorSettings.getExecutorPath())
-                .setExecutable(true)
-        );
-      }
-      CommandUtil.create(
-          executorSettings.getExecutorPath(),
-          executorSettings.getWrapperPath(),
-          "./",
-          commandInfoBuilder);
-      commandInfoBuilder.setValue(
-          "mkdir -p `dirname $MESOS_DIRECTORY` && "
-        + "ln -s $MESOS_SANDBOX $MESOS_DIRECTORY && "
-        + "cd $MESOS_DIRECTORY && "
-        + "exec " + commandInfoBuilder.getValue() + " --nosetuid " + executorSettings.getExtraArgs()
-      );
-
-      ExecutorInfo.Builder execBuilder =
-          configureTaskForExecutor(task, taskConfig)
-              .setCommand(commandInfoBuilder.build())
-              .setContainer(containerBuilder.build());
-
-      taskBuilder
-          .setExecutor(execBuilder.build());
-
     }
   }
 }
