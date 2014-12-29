@@ -487,6 +487,21 @@
             .value()
             .join(', ');
 
+          var container;
+          if (task.container) {
+            container = {};
+            container.image = task.container.image;
+            var modeToString = function modeToString(mode) {
+              var enumValue = _.find(_.pairs(Mode), function(p) { return p[1] === mode; } );
+              return (enumValue || ['??'])[0];
+            };
+
+            container.volumes = _.map(task.container.volumes, function(v) {
+              return v.host_path + ' -> ' + v.container_path
+                     + ' (' + modeToString(v.mode) + ')';
+            }).join(', ');
+          }
+
           return {
             numCpus: task.numCpus,
             ramMb: task.ramMb,
@@ -496,7 +511,8 @@
             contact: task.contactEmail || '',
             ports: _.sortBy(task.requestedPorts).join(', '),
             constraints: constraints,
-            metadata: metadata
+            metadata: metadata,
+            container: container
           };
         },
 
