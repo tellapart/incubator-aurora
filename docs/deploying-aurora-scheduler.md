@@ -12,6 +12,7 @@ machines.  This guide helps you get the scheduler set up and troubleshoot some c
   - [Initializing the Replicated Log](#initializing-the-replicated-log)
   - [Storage Performance Considerations](#storage-performance-considerations)
   - [Network considerations](#network-considerations)
+  - [Considerations for running jobs in docker](#considerations-for-running-jobs-in-docker)
 - [Running Aurora](#running-aurora)
   - [Maintaining an Aurora Installation](#maintaining-an-aurora-installation)
   - [Monitoring](#monitoring)
@@ -143,6 +144,24 @@ to ZooKeeper) or explicitly set in the startup script as follows:
     # ...
     export LIBPROCESS_PORT=8083
     # ...
+
+### Considerations for running jobs in docker containers
+In order for aurora to launch jobs using docker containers, a few extra configuration options
+must be set.  The docker containerizer must be enabled on the mesos slaves by launching them with
+the `--containerizers=docker,mesos` option.
+
+By default, aurora will copy the thermos executor pex file (specified by `-thermos_executor_path`)
+into the container's sandbox.  If using a wrapper script to launch the thermos executor,
+specify the path to it as well using the `-thermos_executor_wrapper_path` option.  Doing so will
+ensure that both the wrapper script and executor are correctly copied into the sandbox.  However,
+if the wrapper script is only being used to pass arguments to the executor
+(announcer configuration for example), the command line flag `-thermos_executor_extra_args`
+can be used instead.
+
+The default behavior of aurora is to disallow jobs that use the `volumes` configuration option
+for security reasons.  To allow arbitrary mounts, use the `--allow_docker_mounts` option.
+
+In order to correctly execute processes inside a job, the docker container must have python 2.7 installed.
 
 ## Running Aurora
 Configure a supervisor like [Monit](http://mmonit.com/monit/) or

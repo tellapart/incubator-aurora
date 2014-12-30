@@ -21,6 +21,7 @@ Aurora + Thermos Configuration Reference
       - [max_failures](#max_failures-1)
       - [max_concurrency](#max_concurrency)
       - [finalization_wait](#finalization_wait)
+      - [container](#container)
     - [Constraint Object](#constraint-object)
     - [Resource Object](#resource-object)
 - [Job Schema](#job-schema)
@@ -161,6 +162,7 @@ can be omitted. In Mesos, `resources` is also required.
    ```max_failures```      | Integer                          | Maximum process failures before being considered failed (Default: 1)
    ```max_concurrency```   | Integer                          | Maximum number of concurrent processes (Default: 0, unlimited concurrency.)
    ```finalization_wait``` | Integer                          | Amount of time allocated for finalizing processes, in seconds. (Default: 30)
+   ```container```         | ```Container``` object           | An optional container to run the processes inside of.
 
 #### name
 `name` is a string denoting the name of this task. It defaults to the name of the first Process in
@@ -276,6 +278,12 @@ Client applications with higher priority may force a shorter
 finalization wait (e.g. through parameters to `thermos kill`), so this
 is mostly a best-effort signal.
 
+#### container
+
+`container` is an optional element which allows running the the processes specified
+inside a Docker container.  The ```Docker``` object is provided as shorthand for
+```Container(type="Docker")```
+
 ### Constraint Object
 
 Current constraint objects only support a single ordering constraint, `order`,
@@ -298,6 +306,28 @@ resources are allocated.
   ```cpu```  | Float   | Fractional number of cores required by the task.
   ```ram```  | Integer | Bytes of RAM required by the task.
   ```disk``` | Integer | Bytes of disk required by the task.
+
+### Container Object
+
+Current container objects only support the "docker" container type.  Mounting volumes into
+the container is supported, although to do so the scheduler must be launched with
+```-allow_docker_mounts```.
+
+  param          | type           | description
+  -----          | :----:         | -----------
+  ```image```    | String         | The name of the docker image to execute.
+  ```type```     | String         | The type of container, currently only "docker" is supported.
+  ```volumes```  | List of Volume | An optional list of ```Volume``` objects which describe the host and container mount points.
+
+### Volume Object
+
+Describes a mount point inside a container.
+
+  param                | type    | description
+  -----                | :----:  | -----------
+  ```host_path```      | String  | The path on the host that will serve as the source for the mount.
+  ```container_path``` | String  | The path inside the container where the mount will be created.
+  ```mode```           | String  | The permissions the mount will have.  "RW" for read/write, "RO" for read-only.
 
 Job Schema
 ==========
