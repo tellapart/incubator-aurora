@@ -188,16 +188,16 @@ struct ExecutorConfig {
 
 /** Defines the type of container to be used */
 enum ContainerType {
-    /** A docker container */
-    DOCKER = 1
+  /** A docker container */
+  DOCKER = 1
 }
 
 /** Defines the required mount mode */
 enum Mode {
-    /** Read Write */
-    RW = 1
-    /** Read Only */
-    RO = 2
+  /** Read Write */
+  RW = 1
+  /** Read Only */
+  RO = 2
 }
 
 /** Describes a volume mount point within a container */

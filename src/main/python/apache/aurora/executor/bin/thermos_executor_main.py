@@ -114,7 +114,7 @@ def proxy_main():
       if options.announcer_ensemble is None:
         app.error('Must specify --announcer-ensemble if the announcer is enabled.')
       status_providers.append(DefaultAnnouncerCheckerProvider(
-          options.announcer_ensemble, options.announcer_serverset_path))
+        options.announcer_ensemble, options.announcer_serverset_path))
 
     # Create executor stub
     if options.execute_as_user or options.nosetuid:
@@ -125,9 +125,9 @@ def proxy_main():
       thermos_runner_provider.set_role(None)
 
       thermos_executor = AuroraExecutor(
-          runner_provider=thermos_runner_provider,
-          status_providers=status_providers,
-          sandbox_provider=UserOverrideDirectorySandboxProvider(options.execute_as_user)
+        runner_provider=thermos_runner_provider,
+        status_providers=status_providers,
+        sandbox_provider=UserOverrideDirectorySandboxProvider(options.execute_as_user)
       )
     else:
       thermos_runner_provider = DefaultThermosTaskRunnerProvider(
@@ -136,8 +136,8 @@ def proxy_main():
       )
 
       thermos_executor = AuroraExecutor(
-          runner_provider=thermos_runner_provider,
-          status_providers=status_providers
+        runner_provider=thermos_runner_provider,
+        status_providers=status_providers
       )
 
     # Create driver stub

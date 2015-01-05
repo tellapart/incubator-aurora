@@ -66,12 +66,15 @@ class Volume(Struct):
   host_path = Required(String)
   mode = Default(String, "RW")
 
+
 class Container(Struct):
   image = Required(String)
   type = Default(String, "docker")
   volumes = Default(List(Volume), [])
 
+
 Docker = Container(type="docker")
+
 
 class Task(Struct):
   name = Default(String, '{{processes[0].name}}')

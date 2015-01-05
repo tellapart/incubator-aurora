@@ -88,15 +88,15 @@ public class SchedulerMain extends AbstractApplication {
   private static final Arg<String> THERMOS_EXECUTOR_PATH = Arg.create();
 
   @CmdLine(name = "thermos_executor_wrapper_path",
-           help = "Path to the thermos executor launch script.")
+      help = "Path to the thermos executor launch script.")
   private static final Arg<String> THERMOS_EXECUTOR_WRAPPER_PATH = Arg.create();
 
-  @CmdLine(name = "thermos_observer_root", help = "Path to the thermos observer root "
-                                               + "(by default /var/run/thermos.)")
+  @CmdLine(name = "thermos_observer_root",
+      help = "Path to the thermos observer root (by default /var/run/thermos.)")
   private static final Arg<String> THERMOS_OBSERVER_ROOT = Arg.create("/var/run/thermos");
 
-  @CmdLine(name = "thermos_executor_extra_args", help = "Extra arguments to be passed to"
-                                                    + " the thermos executor")
+  @CmdLine(name = "thermos_executor_extra_args",
+      help = "Extra arguments to be passed to the thermos executor")
   private static  final Arg<String> THERMOS_EXECUTOR_EXTRA_ARGS = Arg.create("");
 
   @CmdLine(name = "auth_module",

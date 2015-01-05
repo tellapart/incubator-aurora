@@ -261,8 +261,10 @@ public interface MesosTaskFactory {
       return taskBuilder.build();
     }
 
-    private void configureTaskForNoContainer(IAssignedTask task, ITaskConfig config,
-                                             TaskInfo.Builder taskBuilder) {
+    private void configureTaskForNoContainer(
+        IAssignedTask task,
+        ITaskConfig config,
+        TaskInfo.Builder taskBuilder) {
       String commandPrefix =
           "ln -s "
           + executorSettings.getExecutorPath()
@@ -275,14 +277,14 @@ public interface MesosTaskFactory {
           null,
           executorSettings.getExtraArgs()).build();
 
-      ExecutorInfo.Builder executorBuilder =
-          configureTaskForExecutor(task, config, commandInfo);
+      ExecutorInfo.Builder executorBuilder = configureTaskForExecutor(task, config, commandInfo);
       taskBuilder.setExecutor(executorBuilder.build());
     }
 
-    private void configureTaskForContainer(IAssignedTask task,
-                                           ITaskConfig taskConfig,
-                                           TaskInfo.Builder taskBuilder) {
+    private void configureTaskForContainer(
+        IAssignedTask task,
+        ITaskConfig taskConfig,
+        TaskInfo.Builder taskBuilder) {
       IContainerConfig config = taskConfig.getContainer();
       ContainerInfo.DockerInfo.Builder dockerBuilder = ContainerInfo.DockerInfo.newBuilder()
           .setImage(config.getImage());
@@ -301,12 +303,12 @@ public interface MesosTaskFactory {
 
       taskBuilder
           .setExecutor(execBuilder.build());
-
     }
 
-    private ExecutorInfo.Builder configureTaskForExecutor(IAssignedTask task,
-                                                          ITaskConfig config,
-                                                          CommandInfo commandInfo) {
+    private ExecutorInfo.Builder configureTaskForExecutor(
+        IAssignedTask task,
+        ITaskConfig config,
+        CommandInfo commandInfo) {
       ExecutorInfo.Builder executor = ExecutorInfo.newBuilder()
           .setCommand(commandInfo)
           .setExecutorId(getExecutorId(task.getTaskId()))
@@ -339,21 +341,21 @@ public interface MesosTaskFactory {
                                            ContainerInfo.Builder containerBuilder) {
       if (executorSettings.getAllowDockerMounts()) {
         for (IVolumeConfig v : config.getVolumes()) {
-          Volume volume = Volume.newBuilder()
+          containerBuilder.addVolumes(
+            Volume.newBuilder()
               .setContainerPath(v.getContainer_path())
               .setHostPath(v.getHost_path())
               .setMode(Volume.Mode.valueOf(v.getMode().getValue()))
-              .build();
-          containerBuilder.addVolumes(volume);
+              .build());
         }
       }
 
       containerBuilder.addVolumes(
-          Volume.newBuilder()
-              .setContainerPath(executorSettings.getThermosObserverRoot())
-              .setHostPath(executorSettings.getThermosObserverRoot())
-              .setMode(Volume.Mode.RW)
-              .build()
+        Volume.newBuilder()
+          .setContainerPath(executorSettings.getThermosObserverRoot())
+          .setHostPath(executorSettings.getThermosObserverRoot())
+          .setMode(Volume.Mode.RW)
+          .build()
       );
     }
   }

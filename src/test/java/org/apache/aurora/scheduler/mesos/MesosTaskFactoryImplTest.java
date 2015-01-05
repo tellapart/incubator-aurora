@@ -44,28 +44,26 @@ public class MesosTaskFactoryImplTest {
 
   private static final String EXECUTOR_PATH = "/twitter/fake/executor.sh";
   private static final IAssignedTask TASK = IAssignedTask.build(new AssignedTask()
-      .setInstanceId(2)
-      .setTaskId("task-id")
-      .setAssignedPorts(ImmutableMap.of("http", 80))
-      .setTask(new TaskConfig()
-          .setJob(new JobKey("role", "environment", "job-name"))
-          .setOwner(new Identity("role", "user"))
-          .setEnvironment("environment")
-          .setJobName("job-name")
-          .setDiskMb(10)
-          .setRamMb(100)
-          .setNumCpus(5)
-          .setRequestedPorts(ImmutableSet.of("http"))));
+    .setInstanceId(2)
+    .setTaskId("task-id")
+    .setAssignedPorts(ImmutableMap.of("http", 80))
+    .setTask(new TaskConfig()
+      .setJob(new JobKey("role", "environment", "job-name"))
+      .setOwner(new Identity("role", "user"))
+      .setEnvironment("environment")
+      .setJobName("job-name")
+      .setDiskMb(10)
+      .setRamMb(100)
+      .setNumCpus(5)
+      .setRequestedPorts(ImmutableSet.of("http"))));
   private static final IAssignedTask TASK_WITH_DOCKER = IAssignedTask.build(TASK.newBuilder()
-      .setTask(
-          new TaskConfig(TASK.getTask().newBuilder())
-              .setContainer(
-                  new ContainerConfig()
-                      .setImage("testimage")
-                      .setType(ContainerType.DOCKER)
-              )
-      )
-  );
+    .setTask(
+      new TaskConfig(TASK.getTask().newBuilder())
+        .setContainer(
+          new ContainerConfig()
+            .setImage("testimage")
+            .setType(ContainerType.DOCKER)
+        )));
 
   private static final SlaveID SLAVE = SlaveID.newBuilder().setValue("slave-id").build();
   private static final Resources SOME_EXECUTOR_OVERHEAD = new Resources(
@@ -129,7 +127,12 @@ public class MesosTaskFactoryImplTest {
 
   @Test
   public void testCreateFromPortsUnset() {
-    config = new ExecutorSettings(EXECUTOR_PATH, null, "/var/run/thermos", "", false,
+    config = new ExecutorSettings(
+        EXECUTOR_PATH,
+        null,
+        "/var/run/thermos",
+        "",
+        false,
         SOME_EXECUTOR_OVERHEAD);
     taskFactory = new MesosTaskFactoryImpl(config);
     AssignedTask assignedTask = TASK.newBuilder();

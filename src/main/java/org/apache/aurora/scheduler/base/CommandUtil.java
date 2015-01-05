@@ -69,11 +69,12 @@ public final class CommandUtil {
    * @param extraArguments Extra command line arguments to add to the generated command.
    * @return A CommandInfo.Builder populated with resources and a command.
    */
-  public static CommandInfo.Builder create(String executorUri,
-                                   String wrapperUri,
-                                   String commandPrefix,
-                                   String commandSuffix,
-                                   String extraArguments) {
+  public static CommandInfo.Builder create(
+      String executorUri,
+      String wrapperUri,
+      String commandPrefix,
+      String commandSuffix,
+      String extraArguments) {
     CommandInfo.Builder builder = CommandInfo.newBuilder();
     populate(executorUri, wrapperUri, "./", builder);
     String cmdLine = Objects.firstNonNull(commandPrefix, "")
@@ -94,8 +95,11 @@ public final class CommandUtil {
    * @param basePath The base path to the executor
    * @param builder A CommandBuilder to populate
    */
-  public static void populate(String executorUri, String wrapperUri,
-                            String basePath, CommandInfo.Builder builder) {
+  public static void populate(
+      String executorUri,
+      String wrapperUri,
+      String basePath,
+      CommandInfo.Builder builder) {
     String uriToAdd;
 
     if (wrapperUri != null) { //NOPMD - http://sourceforge.net/p/pmd/bugs/228/
