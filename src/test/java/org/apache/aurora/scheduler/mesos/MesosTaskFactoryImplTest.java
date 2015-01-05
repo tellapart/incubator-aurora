@@ -13,8 +13,11 @@
  */
 package org.apache.aurora.scheduler.mesos;
 
+import java.util.Set;
+
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
+import com.google.common.collect.Sets;
 import com.twitter.common.quantity.Amount;
 import com.twitter.common.quantity.Data;
 
@@ -23,11 +26,14 @@ import org.apache.aurora.gen.ContainerConfig;
 import org.apache.aurora.gen.ContainerType;
 import org.apache.aurora.gen.Identity;
 import org.apache.aurora.gen.JobKey;
+import org.apache.aurora.gen.Mode;
 import org.apache.aurora.gen.TaskConfig;
+import org.apache.aurora.gen.VolumeConfig;
 import org.apache.aurora.scheduler.configuration.Resources;
 import org.apache.aurora.scheduler.mesos.MesosTaskFactory.ExecutorSettings;
 import org.apache.aurora.scheduler.mesos.MesosTaskFactory.MesosTaskFactoryImpl;
 import org.apache.aurora.scheduler.storage.entities.IAssignedTask;
+import org.apache.mesos.Protos;
 import org.apache.mesos.Protos.CommandInfo;
 import org.apache.mesos.Protos.CommandInfo.URI;
 import org.apache.mesos.Protos.ExecutorInfo;
@@ -38,6 +44,7 @@ import org.junit.Test;
 import static org.apache.aurora.scheduler.mesos.MesosTaskFactory.MesosTaskFactoryImpl.MIN_TASK_RESOURCES;
 import static org.apache.aurora.scheduler.mesos.MesosTaskFactory.MesosTaskFactoryImpl.MIN_THERMOS_RESOURCES;
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
 
 public class MesosTaskFactoryImplTest {
@@ -48,21 +55,25 @@ public class MesosTaskFactoryImplTest {
     .setTaskId("task-id")
     .setAssignedPorts(ImmutableMap.of("http", 80))
     .setTask(new TaskConfig()
-      .setJob(new JobKey("role", "environment", "job-name"))
-      .setOwner(new Identity("role", "user"))
-      .setEnvironment("environment")
-      .setJobName("job-name")
-      .setDiskMb(10)
-      .setRamMb(100)
-      .setNumCpus(5)
-      .setRequestedPorts(ImmutableSet.of("http"))));
+        .setJob(new JobKey("role", "environment", "job-name"))
+        .setOwner(new Identity("role", "user"))
+        .setEnvironment("environment")
+        .setJobName("job-name")
+        .setDiskMb(10)
+        .setRamMb(100)
+        .setNumCpus(5)
+        .setRequestedPorts(ImmutableSet.of("http"))));
+  private static final Set<VolumeConfig> DOCKER_VOLUMES = Sets.newHashSet(
+      new VolumeConfig("container", "host", Mode.RW)
+  );
   private static final IAssignedTask TASK_WITH_DOCKER = IAssignedTask.build(TASK.newBuilder()
     .setTask(
       new TaskConfig(TASK.getTask().newBuilder())
         .setContainer(
-          new ContainerConfig()
-            .setImage("testimage")
-            .setType(ContainerType.DOCKER)
+            new ContainerConfig()
+                .setImage("testimage")
+                .setType(ContainerType.DOCKER)
+                .setVolumes(DOCKER_VOLUMES)
         )));
 
   private static final SlaveID SLAVE = SlaveID.newBuilder().setValue("slave-id").build();
@@ -206,13 +217,39 @@ public class MesosTaskFactoryImplTest {
     assertEquals(result.getNumPorts(), 1);
   }
 
-  @Test
-  public void testDockerContainer() {
-    config = new ExecutorSettings(EXECUTOR_PATH, null, "/var/run/thermos", "", false,
+  private TaskInfo getDockerTaskInfo(boolean allowDockerMounts) {
+    config = new ExecutorSettings(EXECUTOR_PATH, null, "/var/run/thermos", "", allowDockerMounts,
         SOME_EXECUTOR_OVERHEAD);
     taskFactory = new MesosTaskFactoryImpl(config);
-    TaskInfo task = taskFactory.createFrom(TASK_WITH_DOCKER, SLAVE);
+    return taskFactory.createFrom(TASK_WITH_DOCKER, SLAVE);
+  }
+
+  @Test
+  public void testDockerContainer() {
+    TaskInfo task = getDockerTaskInfo(false);
     assertEquals("testimage", task.getExecutor().getContainer().getDocker().getImage());
   }
 
+  @Test
+  public void testDockerVolumes() {
+    TaskInfo task = getDockerTaskInfo(true);
+    Protos.Volume actualVolume = task.getExecutor().getContainer().getVolumes(0);
+    assertEquals("container", actualVolume.getContainerPath());
+    assertEquals("host", actualVolume.getHostPath());
+    assertEquals(Protos.Volume.Mode.RW, actualVolume.getMode());
+  }
+
+  @Test(expected = NullPointerException.class)
+  public void testInvalidExecutorSettings() {
+    ExecutorSettings settings = new ExecutorSettings(
+        null,
+        null,
+        "",
+        "",
+        false,
+        SOME_EXECUTOR_OVERHEAD);
+
+    // never hit, but avoids unused variable warning.
+    assertNotNull(settings);
+  }
 }
