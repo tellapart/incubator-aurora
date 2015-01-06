@@ -119,8 +119,8 @@ public class SchedulerMain extends AbstractApplication {
   @CmdLine(name = "viz_job_url_prefix", help = "URL prefix for job container stats.")
   private static final Arg<String> STATS_URL_PREFIX = Arg.create("");
 
-  @CmdLine(name = "allow_docker_mounts", help = "Allows docker jobs to create bind mounts"
-                                              + "in their configuration")
+  @CmdLine(name = "allow_docker_mounts",
+      help = "Allows docker jobs to create bind mounts in their configuration")
   private static final Arg<Boolean> ALLOW_DOCKER_MOUNTS = Arg.create(false);
 
   @Inject private SingletonService schedulerService;
