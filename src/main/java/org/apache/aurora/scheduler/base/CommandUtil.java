@@ -13,7 +13,7 @@
  */
 package org.apache.aurora.scheduler.base;
 
-import com.google.common.base.Objects;
+import com.google.common.base.Optional;
 import com.twitter.common.base.MorePreconditions;
 
 import org.apache.mesos.Protos.CommandInfo;
@@ -54,8 +54,12 @@ public final class CommandUtil {
    * @param wrapperUri A URI to the wrapper
    * @return A populated CommandInfo with correct resources set and command set.
    */
-  public static CommandInfo create(String executorUri, String wrapperUri) {
-    return create(executorUri, wrapperUri, null, null, null).build();
+  public static CommandInfo create(Optional<String> executorUri, Optional<String> wrapperUri) {
+    return create(executorUri,
+        wrapperUri,
+        Optional.<String>absent(),
+        Optional.<String>absent(),
+        Optional.<String>absent()).build();
   }
 
   /**
@@ -70,17 +74,17 @@ public final class CommandUtil {
    * @return A CommandInfo.Builder populated with resources and a command.
    */
   public static CommandInfo.Builder create(
-      String executorUri,
-      String wrapperUri,
-      String commandPrefix,
-      String commandSuffix,
-      String extraArguments) {
+      Optional<String> executorUri,
+      Optional<String> wrapperUri,
+      Optional<String> commandPrefix,
+      Optional<String> commandSuffix,
+      Optional<String> extraArguments) {
     CommandInfo.Builder builder = CommandInfo.newBuilder();
     populate(executorUri, wrapperUri, "./", builder);
-    String cmdLine = Objects.firstNonNull(commandPrefix, "")
+    String cmdLine = commandPrefix.or("")
         + builder.getValue()
-        + Objects.firstNonNull(commandSuffix, "")
-        + " " + Objects.firstNonNull(extraArguments, "");
+        + commandSuffix.or("")
+        + " " + extraArguments.or("");
     return builder
         .setValue(cmdLine.trim())
         .setShell(true);
@@ -96,18 +100,17 @@ public final class CommandUtil {
    * @param builder A CommandBuilder to populate
    */
   public static void populate(
-      String executorUri,
-      String wrapperUri,
+      Optional<String> executorUri,
+      Optional<String> wrapperUri,
       String basePath,
       CommandInfo.Builder builder) {
     String uriToAdd;
-
-    if (wrapperUri != null) { //NOPMD - http://sourceforge.net/p/pmd/bugs/228/
-      MorePreconditions.checkNotBlank(wrapperUri);
-      uriToAdd = wrapperUri;
-    } else if (executorUri != null) { //NOPMD - http://sourceforge.net/p/pmd/bugs/228/
-      MorePreconditions.checkNotBlank(executorUri);
-      uriToAdd = executorUri;
+    if (wrapperUri.isPresent()) { //NOPMD - http://sourceforge.net/p/pmd/bugs/228/
+      MorePreconditions.checkNotBlank(wrapperUri.get());
+      uriToAdd = wrapperUri.get();
+    } else if (executorUri.isPresent()) { //NOPMD - http://sourceforge.net/p/pmd/bugs/228/
+      MorePreconditions.checkNotBlank(executorUri.get());
+      uriToAdd = executorUri.get();
     } else {
       throw new IllegalArgumentException("At least executorUri or wrapperUri must be non-null");
     }

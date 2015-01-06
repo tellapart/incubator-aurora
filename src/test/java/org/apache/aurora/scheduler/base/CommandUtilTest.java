@@ -15,6 +15,7 @@ package org.apache.aurora.scheduler.base;
 
 import java.util.Map;
 
+import com.google.common.base.Optional;
 import com.google.common.collect.ImmutableMap;
 
 import org.apache.mesos.Protos.CommandInfo;
@@ -34,38 +35,40 @@ public class CommandUtilTest {
 
   @Test
   public void testExecutorOnlyCommand() {
-    CommandInfo cmd = CommandUtil.create("test/executor", null);
+    CommandInfo cmd = CommandUtil.create(Optional.of("test/executor"), Optional.<String>absent());
     assertEquals("./executor", cmd.getValue());
     assertEquals("test/executor", cmd.getUris(0).getValue());
   }
 
   @Test
   public void testWrapperOnlyCommand() {
-    CommandInfo cmd = CommandUtil.create(null, "test/wrapper");
+    CommandInfo cmd = CommandUtil.create(Optional.<String>absent(), Optional.of("test/wrapper"));
     assertEquals("./wrapper", cmd.getValue());
     assertEquals("test/wrapper", cmd.getUris(0).getValue());
   }
 
   @Test
   public void testWrapperAndExecutorCommand() {
-    CommandInfo cmd = CommandUtil.create("test/executor", "test/wrapper");
+    CommandInfo cmd = CommandUtil.create(
+        Optional.of("test/executor"),
+        Optional.of("test/wrapper"));
     assertEquals("./wrapper", cmd.getValue());
     assertEquals("test/wrapper", cmd.getUris(0).getValue());
   }
 
   @Test(expected = IllegalArgumentException.class)
   public void testBadParameters() {
-    CommandUtil.create(null, null);
+    CommandUtil.create(Optional.<String>absent(), Optional.<String>absent());
   }
 
   @Test(expected = IllegalArgumentException.class)
   public void testBadUri() {
-    CommandUtil.create("a/b/c/", null);
+    CommandUtil.create(Optional.of("a/b/c/"), Optional.<String>absent());
   }
 
   @Test(expected = IllegalArgumentException.class)
   public void testEmptyUri() {
-    CommandUtil.create("", null);
+    CommandUtil.create(Optional.of(""), Optional.<String>absent());
   }
 
   private void test(String basename, String uri, Map<String, String> env) {
@@ -74,6 +77,6 @@ public class CommandUtilTest {
         .setValue("./" + basename)
         .setShell(true)
         .build();
-    assertEquals(expectedCommand, CommandUtil.create(uri, null));
+    assertEquals(expectedCommand, CommandUtil.create(Optional.of(uri), Optional.<String>absent()));
   }
 }

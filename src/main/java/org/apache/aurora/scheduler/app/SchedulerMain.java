@@ -85,11 +85,11 @@ public class SchedulerMain extends AbstractApplication {
   private static final Arg<String> SERVERSET_PATH = Arg.create();
 
   @CmdLine(name = "thermos_executor_path", help = "Path to the thermos executor pex file.")
-  private static final Arg<String> THERMOS_EXECUTOR_PATH = Arg.create();
+  private static final Arg<String> THERMOS_EXECUTOR_PATH = Arg.create(null);
 
   @CmdLine(name = "thermos_executor_wrapper_path",
       help = "Path to the thermos executor launch script.")
-  private static final Arg<String> THERMOS_EXECUTOR_WRAPPER_PATH = Arg.create();
+  private static final Arg<String> THERMOS_EXECUTOR_WRAPPER_PATH = Arg.create(null);
 
   @CmdLine(name = "thermos_observer_root",
       help = "Path to the thermos observer root (by default /var/run/thermos.)")
@@ -97,7 +97,7 @@ public class SchedulerMain extends AbstractApplication {
 
   @CmdLine(name = "thermos_executor_extra_args",
       help = "Extra arguments to be passed to the thermos executor")
-  private static  final Arg<String> THERMOS_EXECUTOR_EXTRA_ARGS = Arg.create("");
+  private static  final Arg<String> THERMOS_EXECUTOR_EXTRA_ARGS = Arg.create(null);
 
   @CmdLine(name = "auth_module",
       help = "A Guice module to provide auth bindings. NOTE: The default is unsecure.")
@@ -204,25 +204,21 @@ public class SchedulerMain extends AbstractApplication {
                 EXECUTOR_OVERHEAD_RAM.get(),
                 Amount.of(0L, Data.MB),
                 0);
-            String thermosExecutorPath = null;
-            String thermosExecutorWrapperPath = null;
-            if (THERMOS_EXECUTOR_PATH.hasAppliedValue()) {
-              thermosExecutorPath = THERMOS_EXECUTOR_PATH.get();
-            }
-            if (THERMOS_EXECUTOR_WRAPPER_PATH.hasAppliedValue()) {
-              thermosExecutorWrapperPath = THERMOS_EXECUTOR_WRAPPER_PATH.get();
-            }
-            if (thermosExecutorPath == null && thermosExecutorWrapperPath == null) {
+            Optional<String> thermosExecutorPath =
+                Optional.fromNullable(THERMOS_EXECUTOR_PATH.get());
+            Optional<String> thermosExecutorWrapperPath =
+                Optional.fromNullable(THERMOS_EXECUTOR_WRAPPER_PATH.get());
+            if (!thermosExecutorPath.isPresent() && !thermosExecutorWrapperPath.isPresent()) {
               throw new IllegalStateException(
                   "At least one of thermos_executor_path or "
-                  + "thermos_executor_wrapper_path must be set.");
+                      + "thermos_executor_wrapper_path must be set.");
             }
             bind(ExecutorSettings.class)
                 .toInstance(new ExecutorSettings(
                     thermosExecutorPath,
                     thermosExecutorWrapperPath,
                     THERMOS_OBSERVER_ROOT.get(),
-                    THERMOS_EXECUTOR_EXTRA_ARGS.get(),
+                    Optional.fromNullable(THERMOS_EXECUTOR_EXTRA_ARGS.get()),
                     ALLOW_DOCKER_MOUNTS.get(),
                     executorOverhead));
           }

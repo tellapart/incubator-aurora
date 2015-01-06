@@ -20,6 +20,7 @@ import java.util.logging.Logger;
 import javax.inject.Inject;
 
 import com.google.common.annotations.VisibleForTesting;
+import com.google.common.base.Optional;
 import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Iterables;
 import com.google.protobuf.ByteString;
@@ -67,35 +68,37 @@ public interface MesosTaskFactory {
   TaskInfo createFrom(IAssignedTask task, SlaveID slaveId) throws SchedulerException;
 
   class ExecutorSettings {
-    private final String executorPath;
-    private final String wrapperPath;
+    private final Optional<String> executorPath;
+    private final Optional<String> wrapperPath;
     private final String thermosObserverRoot;
-    private final String extraArgs;
+    private final Optional<String> extraArgs;
     private final Boolean allowDockerMounts;
     private final Resources executorOverhead;
 
-    public ExecutorSettings(String executorPath,
-                            String wrapperPath,
+    public ExecutorSettings(Optional<String> executorPath,
+                            Optional<String> wrapperPath,
                             String thermosObserverRoot,
-                            String extraArgs,
+                            Optional<String> extraArgs,
                             Boolean allowDockerMounts,
                             Resources executorOverhead) {
-      if (executorPath == null && wrapperPath == null) {
-        throw new NullPointerException();
+      this.executorPath = requireNonNull(executorPath);
+      this.wrapperPath = requireNonNull(wrapperPath);
+      if (!executorPath.isPresent() && !wrapperPath.isPresent()) {
+        throw new NullPointerException(
+            "At least one of executor path or wrapper path must be specified");
       }
-      this.executorPath = executorPath;
-      this.wrapperPath = wrapperPath;
-      this.thermosObserverRoot = thermosObserverRoot;
-      this.extraArgs = extraArgs;
+
+      this.thermosObserverRoot = requireNonNull(thermosObserverRoot);
+      this.extraArgs = requireNonNull(extraArgs);
       this.allowDockerMounts = allowDockerMounts;
       this.executorOverhead = requireNonNull(executorOverhead);
     }
 
-    String getExecutorPath() {
+    Optional<String> getExecutorPath() {
       return executorPath;
     }
 
-    String getWrapperPath() {
+    Optional<String> getWrapperPath() {
       return wrapperPath;
     }
 
@@ -103,7 +106,7 @@ public interface MesosTaskFactory {
       return thermosObserverRoot;
     }
 
-    String getExtraArgs() {
+    Optional<String> getExtraArgs() {
       return extraArgs;
     }
 
@@ -149,12 +152,12 @@ public interface MesosTaskFactory {
     @VisibleForTesting
     static final String EXECUTOR_NAME = "aurora.task";
 
-    private static final String DOCKER_COMMAND_PREFIX =
+    private static final Optional<String> DOCKER_COMMAND_PREFIX = Optional.of(
         "mkdir -p `dirname $MESOS_DIRECTORY` && "
       + "ln -s $MESOS_SANDBOX $MESOS_DIRECTORY && "
-      + "cd $MESOS_DIRECTORY && ";
+      + "cd $MESOS_DIRECTORY && ");
 
-    private static final String DOCKER_COMMAND_SUFFIX = " --nosetuid";
+    private static final Optional<String> DOCKER_COMMAND_SUFFIX = Optional.of(" --nosetuid");
 
     private final ExecutorSettings executorSettings;
 
@@ -265,16 +268,19 @@ public interface MesosTaskFactory {
         IAssignedTask task,
         ITaskConfig config,
         TaskInfo.Builder taskBuilder) {
-      String commandPrefix =
-          "ln -s "
-          + executorSettings.getExecutorPath()
-          + " ./" + CommandUtil.uriBasename(executorSettings.getExecutorPath())
-          + " && ";
+      String commandPrefix = null;
+      if (executorSettings.getExecutorPath().isPresent()) {
+        commandPrefix =
+            "ln -s "
+                + executorSettings.getExecutorPath().get()
+                + " ./" + CommandUtil.uriBasename(executorSettings.getExecutorPath().get())
+                + " && ";
+      }
       CommandInfo commandInfo = CommandUtil.create(
           executorSettings.getExecutorPath(),
           executorSettings.getWrapperPath(),
-          commandPrefix,
-          null,
+          Optional.fromNullable(commandPrefix),
+          Optional.<String>absent(),
           executorSettings.getExtraArgs()).build();
 
       ExecutorInfo.Builder executorBuilder = configureTaskForExecutor(task, config, commandInfo);
@@ -327,10 +333,10 @@ public interface MesosTaskFactory {
           DOCKER_COMMAND_SUFFIX,
           executorSettings.getExtraArgs()
       );
-      if (executorSettings.getExecutorPath() != null
-          && executorSettings.getWrapperPath() != null) {
+      if (executorSettings.getExecutorPath().isPresent()
+          && executorSettings.getWrapperPath().isPresent()) {
         commandInfoBuilder.addUris(CommandInfo.URI.newBuilder()
-                .setValue(executorSettings.getExecutorPath())
+                .setValue(executorSettings.getExecutorPath().get())
                 .setExecutable(true)
         );
       }
