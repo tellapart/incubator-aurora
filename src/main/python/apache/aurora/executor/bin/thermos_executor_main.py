@@ -70,7 +70,7 @@ app.add_option(
     '--execute-as-user',
     dest='execute_as_user',
     type=str,
-    help='Causes the executor to override the user specificed by aurora.'
+    help='Causes the executor to override the user specified by aurora.'
 )
 
 app.add_option(
@@ -79,6 +79,20 @@ app.add_option(
     action='store_true',
     help='If set, the executor will not attempt to change users when running thermos_runner',
     default=False
+)
+
+app.add_option(
+  '--runner-log-maxbytes',
+  dest='runner_log_maxbytes',
+  type=int,
+  help='Maximum size of the stdout/stderr logs emitted by the thermos runner.',
+)
+
+app.add_option(
+  '--runner-log-maxbackups',
+  dest='runner_log_maxbackups',
+  type=int,
+  help='Maximum number of the stdout/stderr logs emitted by the thermos runner.',
 )
 
 
@@ -120,7 +134,9 @@ def proxy_main():
     if options.execute_as_user or options.nosetuid:
       thermos_runner_provider = UserOverrideThermosTaskRunnerProvider(
         dump_runner_pex(),
-        artifact_dir=os.path.abspath('.')
+        artifact_dir=os.path.abspath('.'),
+        log_maxbytes=options.runner_log_maxbytes,
+        log_maxbackups=options.runner_log_maxbackups
       )
       thermos_runner_provider.set_role(None)
 
@@ -132,7 +148,9 @@ def proxy_main():
     else:
       thermos_runner_provider = DefaultThermosTaskRunnerProvider(
         dump_runner_pex(),
-        artifact_dir=os.path.abspath('.')
+        artifact_dir=os.path.abspath('.'),
+        log_maxbytes=options.runner_log_maxbytes,
+        log_maxbackups=options.runner_log_maxbackups
       )
 
       thermos_executor = AuroraExecutor(

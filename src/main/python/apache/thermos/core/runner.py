@@ -418,7 +418,8 @@ class TaskRunner(object):
 
   def __init__(self, task, checkpoint_root, sandbox, log_dir=None,
                task_id=None, portmap=None, user=None, chroot=False, clock=time,
-               universal_handler=None, planner_class=TaskPlanner):
+               universal_handler=None, planner_class=TaskPlanner, log_maxbytes=None,
+               log_maxbackups=None):
     """
       required:
         task (config.Task) = the task to run
@@ -440,6 +441,8 @@ class TaskRunner(object):
         universal_handler = checkpoint record handler (only used for testing)
         planner_class (TaskPlanner class) = TaskPlanner class to use for constructing the task
                             planning policy.
+        log_maxbytes (integer) = The maximum size of the stdout/stderr logs.
+        log_maxbackups (integer) = The maximum number of stdout/stderr log backups.
     """
     if not issubclass(planner_class, TaskPlanner):
       raise TypeError('planner_class must be a TaskPlanner.')
@@ -462,6 +465,8 @@ class TaskRunner(object):
     self._portmap = portmap or {}
     self._launch_time = launch_time
     self._log_dir = log_dir or os.path.join(sandbox, '.logs')
+    self._log_maxbytes = log_maxbytes
+    self._log_maxbackups = log_maxbackups
     self._pathspec = TaskPath(root=checkpoint_root, task_id=self._task_id, log_dir=self._log_dir)
     try:
       ThermosTaskValidator.assert_valid_task(task)
@@ -703,7 +708,9 @@ class TaskRunner(object):
       self._sandbox,
       self._user,
       chroot=self._chroot,
-      fork=close_ckpt_and_fork)
+      fork=close_ckpt_and_fork,
+      log_maxbytes=self._log_maxbytes,
+      log_maxbackups=self._log_maxbackups)
 
   def deadlocked(self, plan=None):
     """Check whether a plan is deadlocked, i.e. there are no running/runnable processes, and the
