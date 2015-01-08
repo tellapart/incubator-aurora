@@ -91,6 +91,22 @@ app.add_option(
     default=False)
 
 
+app.add_option(
+  '--runner-log-maxbytes',
+  dest='runner_log_maxbytes',
+  type=int,
+  help='Maximum size of the stdout/stderr logs emitted by the thermos runner.',
+)
+
+
+app.add_option(
+  '--runner-log-maxbackups',
+  dest='runner_log_maxbackups',
+  type=int,
+  help='Maximum number of the stdout/stderr logs emitted by the thermos runner.',
+)
+
+
 # TODO(wickman) Consider just having the OSS version require pip installed
 # thermos_runner binaries on every machine and instead of embedding the pex
 # as a resource, shell out to one on the PATH.
@@ -136,7 +152,9 @@ def initialize(options):
     thermos_runner_provider = UserOverrideThermosTaskRunnerProvider(
       dump_runner_pex(),
       checkpoint_root,
-      artifact_dir=cwd_path
+      artifact_dir=cwd_path,
+      log_maxbytes=options.runner_log_maxbytes,
+      log_maxbackups=options.runner_log_maxbackups
     )
     thermos_runner_provider.set_role(None)
 
@@ -149,7 +167,9 @@ def initialize(options):
     thermos_runner_provider = DefaultThermosTaskRunnerProvider(
       dump_runner_pex(),
       checkpoint_root,
-      artifact_dir=cwd_path
+      artifact_dir=cwd_path,
+      log_maxbytes=options.runner_log_maxbytes,
+      log_maxbackups=options.runner_log_maxbackups
     )
 
     thermos_executor = AuroraExecutor(
