@@ -102,6 +102,22 @@ app.add_option(
          "the locally-resolved hostname.")
 
 
+app.add_option(
+  '--log_maxbytes',
+  dest='log_maxbytes',
+  type=int,
+  default=None,
+  help='Maximum size of the stdout/stderr logs emitted by the thermos runner.')
+
+
+app.add_option(
+  '--log_maxbackups',
+  dest='log_maxbackups',
+  type=int,
+  default=None,
+  help='Maximum number of the stdout/stderr logs emitted by the thermos runner.')
+
+
 def get_task_from_options(opts):
   tasks = ThermosConfigLoader.load_json(opts.thermos_json)
   if len(tasks.tasks()) == 0:
@@ -167,6 +183,8 @@ def proxy_main(args, opts):
       chroot=opts.chroot,
       planner_class=CappedTaskPlanner,
       hostname=opts.hostname,
+      log_maxbytes=opts.log_maxbytes,
+      log_maxbackups=opts.log_maxbackups
   )
 
   for sig in (signal.SIGUSR1, signal.SIGUSR2):

@@ -14,6 +14,7 @@ machines.  This guide helps you get the scheduler set up and troubleshoot some c
   - [Network considerations](#network-considerations)
   - [Considerations for running jobs in docker](#considerations-for-running-jobs-in-docker)
   - [Security Considerations](#security-considerations)
+  - [Process Log Rotation](#process-log-rotation)
 - [Running Aurora](#running-aurora)
   - [Maintaining an Aurora Installation](#maintaining-an-aurora-installation)
   - [Monitoring](#monitoring)
@@ -172,6 +173,17 @@ tuples. For example `-global_container_mounts=/opt/secret_keys_dir:/mnt/secret_k
 
 In order to correctly execute processes inside a job, the docker container must have python 2.7
 installed.
+
+### Process Log Rotation
+By default, Thermos will not rotate the stdout/stderr logs from child processes and they will grow
+without bound. In order to enable rotation, the following flags can be applied to Thermos (through the
+-thermos_executor_flags argument to the Aurora scheduler):
+
+    --runner-log-maxbytes=104857600
+    --runner-log-maxbackups=10
+
+In the above example, each instance of the Thermos runner will rotate stderr/stdout logs once they
+reach 100 MB in size and keep a maximum of 10 backups.
 
 ## Running Aurora
 Configure a supervisor like [Monit](http://mmonit.com/monit/) or
