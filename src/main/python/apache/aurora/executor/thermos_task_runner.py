@@ -73,7 +73,9 @@ class ThermosTaskRunner(TaskRunner):
                checkpoint_root=DEFAULT_CHECKPOINT_ROOT,
                artifact_dir=None,
                clock=time,
-               hostname=None):
+               hostname=None,
+               log_maxbytes=None,
+               log_maxbackups=None):
     """
       runner_pex       location of the thermos_runner pex that this task runner should use
       task_id          task_id assigned by scheduler
@@ -99,6 +101,8 @@ class ThermosTaskRunner(TaskRunner):
     self._clock = clock
     self._artifact_dir = artifact_dir or safe_mkdtemp()
     self._hostname = hostname or socket.gethostname()
+    self._log_maxbytes = log_maxbytes
+    self._log_maxbackups = log_maxbackups
 
     # wait events
     self._dead = threading.Event()
@@ -252,13 +256,16 @@ class ThermosTaskRunner(TaskRunner):
                   sandbox=host_sandbox or self._root,
                   task_id=self._task_id,
                   thermos_json=self._task_filename,
-                  hostname=self._hostname)
+                  hostname=self._hostname,
+                  log_maxbytes=self._log_maxbytes,
+                  log_maxbackups=self._log_maxbackups)
 
     if getpass.getuser() == 'root' and self._role:
       params.update(setuid=self._role)
 
     cmdline_args = [sys.executable, self._runner_pex]
-    cmdline_args.extend('--%s=%s' % (flag, value) for flag, value in params.items())
+    cmdline_args.extend(
+        '--%s=%s' % (flag, value) for flag, value in params.items() if value is not None)
     if self._enable_chroot:
       cmdline_args.extend(['--enable_chroot'])
     for name, port in self._ports.items():
@@ -364,7 +371,9 @@ class DefaultThermosTaskRunnerProvider(TaskRunnerProvider):
                max_wait=Amount(1, Time.MINUTES),
                preemption_wait=Amount(1, Time.MINUTES),
                poll_interval=Amount(500, Time.MILLISECONDS),
-               clock=time):
+               clock=time,
+               log_maxbytes=None,
+               log_maxbackups=None):
     self._artifact_dir = artifact_dir or safe_mkdtemp()
     self._checkpoint_root = checkpoint_root
     self._clock = clock
@@ -373,6 +382,8 @@ class DefaultThermosTaskRunnerProvider(TaskRunnerProvider):
     self._poll_interval = poll_interval
     self._preemption_wait = preemption_wait
     self._task_runner_class = task_runner_class
+    self._log_maxbytes = log_maxbytes
+    self._log_maxbackups = log_maxbackups
 
   def _get_role(self, assigned_task):
     return None if assigned_task.task.container.docker else assigned_task.task.job.role
@@ -401,7 +412,9 @@ class DefaultThermosTaskRunnerProvider(TaskRunnerProvider):
         checkpoint_root=self._checkpoint_root,
         artifact_dir=self._artifact_dir,
         clock=self._clock,
-        hostname=assigned_task.slaveHost)
+        hostname=assigned_task.slaveHost,
+        log_maxbytes=self._log_maxbytes,
+        log_maxbackups=self._log_maxbackups)
 
 
 class UserOverrideThermosTaskRunnerProvider(DefaultThermosTaskRunnerProvider):

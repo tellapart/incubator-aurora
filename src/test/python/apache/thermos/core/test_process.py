@@ -25,7 +25,7 @@ from twitter.common.dirutil import safe_mkdir
 from twitter.common.recordio import ThriftRecordReader
 
 from apache.thermos.common.path import TaskPath
-from apache.thermos.core.process import Process
+from apache.thermos.core.process import LogRotatingSubprocessExecutor, Process
 
 from gen.apache.thermos.ttypes import RunnerCkpt
 
@@ -76,10 +76,7 @@ def test_simple_process():
     rc = wait_for_rc(taskpath.getpath('process_checkpoint'))
 
     assert rc == 0
-    stdout = taskpath.with_filename('stdout').getpath('process_logdir')
-    assert os.path.exists(stdout)
-    with open(stdout, 'r') as fp:
-      assert fp.read() == 'hello world\n'
+    assert_log_content(taskpath, 'stdout', 'hello world\n')
 
 
 @mock.patch('os.chown')
@@ -175,3 +172,47 @@ def test_cloexec():
 
   assert run_with_class(TestWithoutCloexec) == 0
   assert run_with_class(TestProcess) != 0
+
+
+def test_log_rotation():
+  # During testing, read one byte at a time to make the file sizes deterministic.
+  LogRotatingSubprocessExecutor.READ_BUFFER_SIZE = 1
+  with temporary_dir() as td:
+    taskpath = TaskPath(root=td, task_id='task', process='process', run=0)
+    sandbox = setup_sandbox(td, taskpath)
+
+    script = 'for i in {1..31};do echo "stderr" 1>&2; done;for i in {1..31};do echo "stdout";done'
+    p = TestProcess(
+        'process',
+        script,
+        0,
+        taskpath,
+        sandbox,
+        log_maxbytes=70,
+        log_maxbackups=2)
+    p.start()
+    rc = wait_for_rc(taskpath.getpath('process_checkpoint'))
+
+    assert rc == 0
+
+    assert_log_content(taskpath, 'stdout', 'stdout\n')
+    assert_log_content(taskpath, 'stdout.1', 'stdout\n' * 10)
+    assert_log_content(taskpath, 'stdout.2', 'stdout\n' * 10)
+    assert_log_dne(taskpath, 'stdout.3')
+
+    assert_log_content(taskpath, 'stderr', 'stderr\n')
+    assert_log_content(taskpath, 'stderr.1', 'stderr\n' * 10)
+    assert_log_content(taskpath, 'stderr.2', 'stderr\n' * 10)
+    assert_log_dne(taskpath, 'stderr.3')
+
+
+def assert_log_content(taskpath, log_name, expected_content):
+  log = taskpath.with_filename(log_name).getpath('process_logdir')
+  assert os.path.exists(log)
+  with open(log, 'r') as fp:
+    assert fp.read() == expected_content
+
+
+def assert_log_dne(taskpath, log_name):
+  log = taskpath.with_filename(log_name).getpath('process_logdir')
+  assert not os.path.exists(log)
