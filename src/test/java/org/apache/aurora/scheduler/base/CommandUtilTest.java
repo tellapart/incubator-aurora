@@ -13,10 +13,8 @@
  */
 package org.apache.aurora.scheduler.base;
 
-import java.util.List;
 import java.util.Map;
 
-import com.google.common.base.Optional;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 
@@ -37,7 +35,7 @@ public class CommandUtilTest {
 
   @Test
   public void testExecutorOnlyCommand() {
-    CommandInfo cmd = CommandUtil.create("test/executor", Optional.<List<String>>absent());
+    CommandInfo cmd = CommandUtil.create("test/executor", ImmutableList.<String>of());
     assertEquals("./executor", cmd.getValue());
     assertEquals("test/executor", cmd.getUris(0).getValue());
   }
@@ -46,7 +44,7 @@ public class CommandUtilTest {
   public void testWrapperAndExecutorCommand() {
     CommandInfo cmd = CommandUtil.create(
         "test/wrapper",
-        Optional.<List<String>>of(ImmutableList.of("test/executor")));
+        ImmutableList.of("test/executor"));
     assertEquals("./wrapper", cmd.getValue());
     assertEquals("test/executor", cmd.getUris(0).getValue());
     assertEquals("test/wrapper", cmd.getUris(1).getValue());
@@ -54,17 +52,17 @@ public class CommandUtilTest {
 
   @Test(expected = NullPointerException.class)
   public void testBadParameters() {
-    CommandUtil.create(null, Optional.<List<String>>absent());
+    CommandUtil.create(null, ImmutableList.<String>of());
   }
 
   @Test(expected = IllegalArgumentException.class)
   public void testBadUri() {
-    CommandUtil.create("a/b/c/", Optional.<List<String>>absent());
+    CommandUtil.create("a/b/c/", ImmutableList.<String>of());
   }
 
   @Test(expected = IllegalArgumentException.class)
   public void testEmptyUri() {
-    CommandUtil.create("", Optional.<List<String>>absent());
+    CommandUtil.create("", ImmutableList.<String>of());
   }
 
   private void test(String basename, String uri, Map<String, String> env) {
@@ -73,6 +71,6 @@ public class CommandUtilTest {
         .setValue("./" + basename)
         .setShell(true)
         .build();
-    assertEquals(expectedCommand, CommandUtil.create(uri, Optional.<List<String>>absent()));
+    assertEquals(expectedCommand, CommandUtil.create(uri, ImmutableList.<String>of()));
   }
 }

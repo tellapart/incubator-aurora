@@ -17,6 +17,7 @@ import java.util.List;
 
 import com.google.common.base.Function;
 import com.google.common.base.Optional;
+import com.google.common.base.Preconditions;
 import com.google.common.collect.Iterables;
 import com.twitter.common.base.MorePreconditions;
 
@@ -65,7 +66,7 @@ public final class CommandUtil {
    * @param executorResources A list of URIs to be fetched into the sandbox with the executor.
    * @return A populated CommandInfo with correct resources set and command set.
    */
-  public static CommandInfo create(String executorUri, Optional<List<String>> executorResources) {
+  public static CommandInfo create(String executorUri, List<String> executorResources) {
     return create(
         executorUri,
         executorResources,
@@ -87,18 +88,16 @@ public final class CommandUtil {
    */
   public static CommandInfo.Builder create(
       String executorUri,
-      Optional<List<String>> executorResources,
+      List<String> executorResources,
       Optional<String> commandPrefix,
       Optional<String> commandSuffix,
       Optional<String> extraArguments) {
 
-    CommandInfo.Builder builder = CommandInfo.newBuilder();
+    Preconditions.checkNotNull(executorResources);
     MorePreconditions.checkNotBlank(executorUri);
-    if (executorResources.isPresent()) {
-      List<String> splitResources = executorResources.get();
-      builder.addAllUris(Iterables.transform(splitResources, STRING_TO_URI_RESOURCE));
-    }
+    CommandInfo.Builder builder = CommandInfo.newBuilder();
 
+    builder.addAllUris(Iterables.transform(executorResources, STRING_TO_URI_RESOURCE));
     builder.addUris(STRING_TO_URI_RESOURCE.apply(executorUri));
 
     String cmdLine = commandPrefix.or("")

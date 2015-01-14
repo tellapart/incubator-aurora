@@ -90,7 +90,8 @@ public class SchedulerMain extends AbstractApplication {
       help = "A comma seperated list of additional resources to copy into the sandbox."
           + "Note: if thermos_executor_path is not the thermos_executor.pex file itself, "
           + "this must include it.")
-  private static final Arg<List<String>> THERMOS_EXECUTOR_RESOURCES = Arg.create(null);
+  private static final Arg<List<String>> THERMOS_EXECUTOR_RESOURCES =
+      Arg.<List<String>>create(ImmutableList.<String>of());
 
   @CmdLine(name = "thermos_executor_flags",
       help = "Extra arguments to be passed to the thermos executor")
@@ -124,9 +125,6 @@ public class SchedulerMain extends AbstractApplication {
       help = "The hostname to advertise in ZooKeeper instead of the locally-resolved hostname.")
   private static final Arg<String> HOSTNAME_OVERRIDE = Arg.create(null);
 
-  @CmdLine(name = "allow_docker_mounts",
-      help = "Allows docker jobs to create bind mounts in their configuration")
-  private static final Arg<Boolean> ALLOW_DOCKER_MOUNTS = Arg.create(false);
 
   @Inject private SingletonService schedulerService;
   @Inject private LocalServiceRegistryWithOverrides serviceRegistry;
@@ -220,10 +218,9 @@ public class SchedulerMain extends AbstractApplication {
             bind(ExecutorSettings.class)
                 .toInstance(new ExecutorSettings(
                     THERMOS_EXECUTOR_PATH.get(),
-                    Optional.fromNullable(THERMOS_EXECUTOR_RESOURCES.get()),
+                    THERMOS_EXECUTOR_RESOURCES.get(),
                     THERMOS_OBSERVER_ROOT.get(),
                     Optional.fromNullable(THERMOS_EXECUTOR_FLAGS.get()),
-                    ALLOW_DOCKER_MOUNTS.get(),
                     executorOverhead));
           }
         })

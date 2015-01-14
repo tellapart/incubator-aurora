@@ -17,9 +17,9 @@ import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
 
 import org.apache.aurora.gen.Constraint;
-import org.apache.aurora.gen.ContainerConfig;
-import org.apache.aurora.gen.ContainerType;
+import org.apache.aurora.gen.Container;
 import org.apache.aurora.gen.CronCollisionPolicy;
+import org.apache.aurora.gen.DockerContainer;
 import org.apache.aurora.gen.ExecutorConfig;
 import org.apache.aurora.gen.Identity;
 import org.apache.aurora.gen.JobConfiguration;
@@ -85,11 +85,11 @@ public class ConfigurationManagerTest {
       .setJobName("container-test")
       .setEnvironment("devel")
       .setExecutorConfig(new ExecutorConfig())
-          .setOwner(new Identity("role", "user"))
-          .setNumCpus(1)
+      .setOwner(new Identity("role", "user"))
+      .setNumCpus(1)
       .setRamMb(1)
       .setDiskMb(1)
-      .setContainer(new ContainerConfig("testimage", ContainerType.DOCKER, null)))
+      .setContainer(Container.docker(new DockerContainer("testimage"))))
       .newBuilder();
 
   @Test
@@ -110,15 +110,10 @@ public class ConfigurationManagerTest {
     assertTrue(copy.isSetKey());
   }
 
-  @Test
-  public void testGoodContainerConfig() throws ConfigurationManager.TaskDescriptionException {
-    ConfigurationManager.validateAndPopulate(ITaskConfig.build(CONFIG_WITH_CONTAINER));
-  }
-
   @Test(expected = ConfigurationManager.TaskDescriptionException.class)
   public void testBadContainerConfig() throws ConfigurationManager.TaskDescriptionException {
     TaskConfig taskConfig = CONFIG_WITH_CONTAINER.deepCopy();
-    taskConfig.getContainer().setImage(null);
+    taskConfig.getContainer().getDocker().setImage(null);
 
     ConfigurationManager.validateAndPopulate(ITaskConfig.build(taskConfig));
   }

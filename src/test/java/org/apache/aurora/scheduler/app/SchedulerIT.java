@@ -16,7 +16,6 @@ package org.apache.aurora.scheduler.app;
 import java.io.File;
 import java.net.InetSocketAddress;
 import java.util.Arrays;
-import java.util.List;
 import java.util.concurrent.Callable;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
@@ -207,10 +206,9 @@ public class SchedulerIT extends BaseZooKeeperTest {
         bind(ExecutorSettings.class)
             .toInstance(new ExecutorSettings(
                 "/executor/thermos",
-                Optional.<List<String>>absent(),
+                ImmutableList.<String>of(),
                 "/var/run/thermos",
                 Optional.<String>absent(),
-                false,
                 executorOverhead));
         install(new BackupModule(backupDir, SnapshotStoreImpl.class));
       }

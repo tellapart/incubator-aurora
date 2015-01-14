@@ -24,20 +24,19 @@ from apache.thermos.config.loader import ThermosTaskValidator
 from gen.apache.aurora.api.constants import AURORA_EXECUTOR_NAME, GOOD_IDENTIFIER_PATTERN_PYTHON
 from gen.apache.aurora.api.ttypes import (
     Constraint,
-    ContainerConfig,
-    ContainerType,
+    Container,
     CronCollisionPolicy,
+    DockerContainer,
     ExecutorConfig,
     Identity,
     JobConfiguration,
     JobKey,
     LimitConstraint,
+    MesosContainer,
     Metadata,
-    Mode,
     TaskConfig,
     TaskConstraint,
-    ValueConstraint,
-    VolumeConfig
+    ValueConstraint
 )
 
 __all__ = (
@@ -121,26 +120,17 @@ def select_cron_policy(cron_policy):
   return parse_enum(CronCollisionPolicy, cron_policy)
 
 
-def select_container_type(container_type):
-  return parse_enum(ContainerType, container_type)
-
-
 def select_service_bit(job):
   return fully_interpolated(job.service(), bool)
 
 
 def create_container_config(container):
-  def make_volume_config(v):
-    return VolumeConfig(
-      fully_interpolated(v.container_path()),
-      fully_interpolated(v.host_path()),
-      parse_enum(Mode, v.mode())
-    )
-  volumes = [make_volume_config(v) for v in container.volumes()]
-  config = ContainerConfig(fully_interpolated(container.image()),
-                           select_container_type(container.type()),
-                           volumes)
-  return config
+  if container is Empty:
+    return Container(MesosContainer(), None)
+  elif fully_interpolated(container.type()) == 'docker':
+    return Container(None, DockerContainer(fully_interpolated(container.image())))
+  else:
+    raise InvalidConfig('Invalid container %s.' % container.type())
 
 
 # TODO(wickman): We should revert to using the MesosTaskInstance.
@@ -227,9 +217,7 @@ def convert(job, metadata=frozenset(), ports=frozenset()):
   task.requestedPorts = ports
   task.taskLinks = not_empty_or(job.task_links(), {})
   task.constraints = constraints_to_thrift(not_empty_or(job.constraints(), {}))
-  container = task_raw.container()
-  if container is not Empty:
-    task.container = create_container_config(container)
+  task.container = create_container_config(task_raw.container())
 
   underlying, refs = job.interpolate()
 

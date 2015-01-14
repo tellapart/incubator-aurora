@@ -61,16 +61,10 @@ class Process(Struct):
   final         = Default(Boolean, False)  # if this process should be a finalizing process
                                            # that should always be run after regular processes
 
-class Volume(Struct):
-  container_path = Required(String)
-  host_path = Required(String)
-  mode = Default(String, "RW")
-
 
 class Container(Struct):
   image = Required(String)
   type = Default(String, "docker")
-  volumes = Default(List(Volume), [])
 
 
 Docker = Container(type="docker")

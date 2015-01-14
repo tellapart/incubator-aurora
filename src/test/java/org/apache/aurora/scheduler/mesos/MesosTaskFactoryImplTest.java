@@ -13,9 +13,6 @@
  */
 package org.apache.aurora.scheduler.mesos;
 
-import java.util.List;
-import java.util.Set;
-
 import com.google.common.base.Optional;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
@@ -24,18 +21,16 @@ import com.twitter.common.quantity.Amount;
 import com.twitter.common.quantity.Data;
 
 import org.apache.aurora.gen.AssignedTask;
-import org.apache.aurora.gen.ContainerConfig;
-import org.apache.aurora.gen.ContainerType;
+import org.apache.aurora.gen.Container;
+import org.apache.aurora.gen.DockerContainer;
 import org.apache.aurora.gen.Identity;
 import org.apache.aurora.gen.JobKey;
-import org.apache.aurora.gen.Mode;
+import org.apache.aurora.gen.MesosContainer;
 import org.apache.aurora.gen.TaskConfig;
-import org.apache.aurora.gen.VolumeConfig;
 import org.apache.aurora.scheduler.configuration.Resources;
 import org.apache.aurora.scheduler.mesos.MesosTaskFactory.ExecutorSettings;
 import org.apache.aurora.scheduler.mesos.MesosTaskFactory.MesosTaskFactoryImpl;
 import org.apache.aurora.scheduler.storage.entities.IAssignedTask;
-import org.apache.mesos.Protos;
 import org.apache.mesos.Protos.CommandInfo;
 import org.apache.mesos.Protos.CommandInfo.URI;
 import org.apache.mesos.Protos.ExecutorInfo;
@@ -47,7 +42,6 @@ import org.junit.Test;
 import static org.apache.aurora.scheduler.mesos.MesosTaskFactory.MesosTaskFactoryImpl.MIN_TASK_RESOURCES;
 import static org.apache.aurora.scheduler.mesos.MesosTaskFactory.MesosTaskFactoryImpl.MIN_THERMOS_RESOURCES;
 import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
 
 public class MesosTaskFactoryImplTest {
@@ -66,18 +60,12 @@ public class MesosTaskFactoryImplTest {
         .setDiskMb(10)
         .setRamMb(100)
         .setNumCpus(5)
+        .setContainer(Container.mesos(new MesosContainer()))
         .setRequestedPorts(ImmutableSet.of("http"))));
-  private static final Set<VolumeConfig> DOCKER_VOLUMES = ImmutableSet.of(new VolumeConfig(
-      "container",
-      "host",
-      Mode.RW));
   private static final IAssignedTask TASK_WITH_DOCKER = IAssignedTask.build(TASK.newBuilder()
     .setTask(
         new TaskConfig(TASK.getTask().newBuilder())
-            .setContainer(new ContainerConfig()
-                .setImage("testimage")
-                .setType(ContainerType.DOCKER)
-                .setVolumes(DOCKER_VOLUMES))));
+            .setContainer(Container.docker(new DockerContainer("testimage")))));
 
   private static final SlaveID SLAVE = SlaveID.newBuilder().setValue("slave-id").build();
   private static final Resources SOME_EXECUTOR_OVERHEAD = new Resources(
@@ -119,10 +107,9 @@ public class MesosTaskFactoryImplTest {
   public void setUp() {
     config = new ExecutorSettings(
         EXECUTOR_PATH,
-        Optional.<List<String>>absent(),
+        ImmutableList.<String>of(),
         "/var/run/thermos",
         Optional.<String>absent(),
-        false,
         SOME_EXECUTOR_OVERHEAD);
   }
 
@@ -193,10 +180,9 @@ public class MesosTaskFactoryImplTest {
     // + executor overhead. We need to ensure we allocate a non-zero amount of ram in this case.
     config = new ExecutorSettings(
         EXECUTOR_PATH,
-        Optional.<List<String>>absent(),
+        ImmutableList.<String>of(),
         "/var/run/thermos",
         Optional.<String>absent(),
-        false,
         NO_EXECUTOR_OVERHEAD);
     taskFactory = new MesosTaskFactoryImpl(config);
     TaskInfo task = taskFactory.createFrom(TASK, SLAVE);
@@ -236,13 +222,12 @@ public class MesosTaskFactoryImplTest {
     assertEquals(result.getNumPorts(), 1);
   }
 
-  private TaskInfo getDockerTaskInfo(boolean allowDockerMounts) {
+  private TaskInfo getDockerTaskInfo() {
     config = new ExecutorSettings(
         EXECUTOR_PATH,
-        Optional.<List<String>>absent(),
+        ImmutableList.<String>of(),
         "/var/run/thermos",
         Optional.<String>absent(),
-        allowDockerMounts,
         SOME_EXECUTOR_OVERHEAD);
     taskFactory = new MesosTaskFactoryImpl(config);
     return taskFactory.createFrom(TASK_WITH_DOCKER, SLAVE);
@@ -250,41 +235,27 @@ public class MesosTaskFactoryImplTest {
 
   @Test
   public void testDockerContainer() {
-    TaskInfo task = getDockerTaskInfo(false);
+    TaskInfo task = getDockerTaskInfo();
     assertEquals("testimage", task.getExecutor().getContainer().getDocker().getImage());
-  }
-
-  @Test
-  public void testDockerVolumes() {
-    TaskInfo task = getDockerTaskInfo(true);
-    Protos.Volume actualVolume = task.getExecutor().getContainer().getVolumes(0);
-    assertEquals("container", actualVolume.getContainerPath());
-    assertEquals("host", actualVolume.getHostPath());
-    assertEquals(Protos.Volume.Mode.RW, actualVolume.getMode());
   }
 
   @Test(expected = NullPointerException.class)
   public void testInvalidExecutorSettings() {
-    ExecutorSettings settings = new ExecutorSettings(
+    new ExecutorSettings(
         null,
-        Optional.<List<String>>absent(),
+        ImmutableList.<String>of(),
         "",
         Optional.<String>absent(),
-        false,
         SOME_EXECUTOR_OVERHEAD);
-
-    // never hit, but avoids unused variable warning.
-    assertNotNull(settings);
   }
 
   @Test
   public void testExecutorAndWrapper() {
     config = new ExecutorSettings(
         EXECUTOR_WRAPPER_PATH,
-        Optional.<List<String>>of(ImmutableList.of(EXECUTOR_PATH)),
+        ImmutableList.of(EXECUTOR_PATH),
         "/var/run/thermos",
         Optional.<String>absent(),
-        false,
         SOME_EXECUTOR_OVERHEAD);
     taskFactory = new MesosTaskFactoryImpl(config);
     TaskInfo taskInfo = taskFactory.createFrom(TASK, SLAVE);

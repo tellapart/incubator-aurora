@@ -15,7 +15,7 @@
   /* global auroraUI:false, Identity:false, TaskQuery:false, ReadOnlySchedulerClient:false,
             ACTIVE_STATES:false, CronCollisionPolicy: false, JobKey: false,
             ScheduleStatus: false, JobUpdateQuery:false, JobUpdateAction:false,
-            JobUpdateStatus: false, Mode: false */
+            JobUpdateStatus: false */
   'use strict';
 
   function makeJobTaskQuery(role, environment, jobName) {
@@ -488,17 +488,9 @@
             .join(', ');
 
           var container;
-          if (task.container) {
+          if (task.container && task.container.docker) {
             container = {};
-            container.image = task.container.image;
-            var modeToString = function modeToString(mode) {
-              var enumValue = _.find(_.pairs(Mode), function (p) { return p[1] === mode; });
-              return (enumValue || ['??'])[0];
-            };
-
-            container.volumes = _.map(task.container.volumes, function (v) {
-              return v.hostPath + ' -> ' + v.containerPath + ' (' + modeToString(v.mode) + ')';
-            }).join(', ');
+            container.image = task.container.docker.image;
           }
 
           return {

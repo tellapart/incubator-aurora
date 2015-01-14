@@ -148,22 +148,17 @@ to ZooKeeper) or explicitly set in the startup script as follows:
 ### Considerations for running jobs in docker containers
 *Note: Docker support is currently EXPERIMENTAL.*
 
-In order for aurora to launch jobs using docker containers, a few extra configuration options
+In order for Aurora to launch jobs using docker containers, a few extra configuration options
 must be set.  The [docker containerizer](http://mesos.apache.org/documentation/latest/docker-containerizer/)
 must be enabled on the mesos slaves by launching them with the `--containerizers=docker,mesos` option.
 
 By default, aurora will configure mesos to copy the file specified in `-thermos_executor_path`
 into the container's sandbox.  If using a wrapper script to launch the thermos executor,
-specify the path to the wrapper it in that arguement.  In addition, the executor pex itself must be
-included in `-thermos_executor_resources` option.  Doing so will  ensure that both the wrapper script
+specify the path to the wrapper in that arguement.  In addition, the executor pex itself must be
+included in `-thermos_executor_resources` option.  Doing so will ensure that both the wrapper script
 and executor are correctly copied into the sandbox.  In addition, ensure the wrapper script does not
 access resources outside of the sandbox, because when running inside a docker container they will not
 exist.
-
-The default behavior of aurora is to disallow jobs that use the `volumes` configuration option
-for security reasons.  To allow arbitrary mounts, use the `-allow_docker_mounts` option.  Note enabling
-this option essentially allows any aurora user root access to the slaves, since they can mount any path
-into their container.
 
 In order to correctly execute processes inside a job, the docker container must have python 2.7 installed.
 

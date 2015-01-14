@@ -36,10 +36,9 @@ import org.apache.aurora.scheduler.base.Tasks;
 import org.apache.aurora.scheduler.configuration.Resources;
 
 import org.apache.aurora.scheduler.storage.entities.IAssignedTask;
-import org.apache.aurora.scheduler.storage.entities.IContainerConfig;
+import org.apache.aurora.scheduler.storage.entities.IDockerContainer;
 import org.apache.aurora.scheduler.storage.entities.IJobKey;
 import org.apache.aurora.scheduler.storage.entities.ITaskConfig;
-import org.apache.aurora.scheduler.storage.entities.IVolumeConfig;
 import org.apache.mesos.Protos.CommandInfo;
 import org.apache.mesos.Protos.ContainerInfo;
 import org.apache.mesos.Protos.ExecutorID;
@@ -70,25 +69,22 @@ public interface MesosTaskFactory {
   class ExecutorSettings {
 
     private final String executorPath;
-    private final Optional<List<String>> executorResources;
+    private final List<String> executorResources;
     private final String thermosObserverRoot;
     private final Optional<String> executorFlags;
-    private final boolean allowDockerMounts;
     private final Resources executorOverhead;
 
     public ExecutorSettings(
         String executorPath,
-        Optional<List<String>> executorResources,
+        List<String> executorResources,
         String thermosObserverRoot,
         Optional<String> executorFlags,
-        boolean allowDockerMounts,
         Resources executorOverhead) {
 
       this.executorPath = requireNonNull(executorPath);
       this.executorResources = requireNonNull(executorResources);
       this.thermosObserverRoot = requireNonNull(thermosObserverRoot);
       this.executorFlags = requireNonNull(executorFlags);
-      this.allowDockerMounts = allowDockerMounts;
       this.executorOverhead = requireNonNull(executorOverhead);
     }
 
@@ -96,7 +92,7 @@ public interface MesosTaskFactory {
       return executorPath;
     }
 
-    Optional<List<String>> getExecutorResources() {
+    List<String> getExecutorResources() {
       return executorResources;
     }
 
@@ -106,10 +102,6 @@ public interface MesosTaskFactory {
 
     Optional<String> getExecutorFlags() {
       return executorFlags;
-    }
-
-    boolean isAllowDockerMounts() {
-      return allowDockerMounts;
     }
 
     Resources getExecutorOverhead() {
@@ -258,10 +250,12 @@ public interface MesosTaskFactory {
               .addAllResources(resources)
               .setData(ByteString.copyFrom(taskInBytes));
 
-      if (config.getContainer() == null) {
+      if (config.getContainer().isSetMesos()) {
         configureTaskForNoContainer(task, config, taskBuilder);
+      } else if (config.getContainer().isSetDocker()) {
+        configureTaskForDockerContainer(task, config, taskBuilder);
       } else {
-        configureTaskForContainer(task, config, taskBuilder);
+        throw new SchedulerException("Task had no supported container set.");
       }
 
       return taskBuilder.build();
@@ -283,20 +277,20 @@ public interface MesosTaskFactory {
       taskBuilder.setExecutor(executorBuilder.build());
     }
 
-    private void configureTaskForContainer(
+    private void configureTaskForDockerContainer(
         IAssignedTask task,
         ITaskConfig taskConfig,
         TaskInfo.Builder taskBuilder) {
 
-      IContainerConfig config = taskConfig.getContainer();
+      IDockerContainer config = taskConfig.getContainer().getDocker();
       ContainerInfo.DockerInfo.Builder dockerBuilder = ContainerInfo.DockerInfo.newBuilder()
           .setImage(config.getImage());
 
       ContainerInfo.Builder containerBuilder = ContainerInfo.newBuilder()
-          .setType(ContainerInfo.Type.valueOf(config.getType().getValue()))
+          .setType(ContainerInfo.Type.DOCKER)
           .setDocker(dockerBuilder.build());
 
-      configureContainerVolumes(config, containerBuilder);
+      configureContainerVolumes(containerBuilder);
 
       // TODO(SteveNiemitz): Allow users to specify an executor per container type.
       CommandInfo.Builder commandInfoBuilder = CommandUtil.create(
@@ -326,21 +320,7 @@ public interface MesosTaskFactory {
           .addAllResources(MIN_THERMOS_RESOURCES.toResourceList());
     }
 
-    private void configureContainerVolumes(
-        IContainerConfig config,
-        ContainerInfo.Builder containerBuilder) {
-
-      if (executorSettings.isAllowDockerMounts()) {
-        for (IVolumeConfig v : config.getVolumes()) {
-          containerBuilder.addVolumes(
-            Volume.newBuilder()
-              .setContainerPath(v.getContainerPath())
-              .setHostPath(v.getHostPath())
-              .setMode(Volume.Mode.valueOf(v.getMode().getValue()))
-              .build());
-        }
-      }
-
+    private void configureContainerVolumes(ContainerInfo.Builder containerBuilder) {
       containerBuilder.addVolumes(
           Volume.newBuilder()
               .setContainerPath(executorSettings.getThermosObserverRoot())

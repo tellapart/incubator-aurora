@@ -33,5 +33,4 @@ Vagrant.configure(VAGRANTFILE_API_VERSION) do |config|
     end
     dev.vm.provision "shell", path: "examples/vagrant/provision-dev-cluster.sh"
   end
-
 end

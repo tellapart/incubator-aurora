@@ -310,29 +310,15 @@ resources are allocated.
 ### Container Object
 
 *Note: The only container type currently supported is "docker".  Docker support is currently EXPERIMENTAL.*
-*Note: In order to correctly execute processes inside a job, the docker container must have python 2.7 installed.*
+*Note: In order to correctly execute processes inside a job, the Docker container must have python 2.7 installed.*
 
 Describes the container the job's processes will run inside.
-
-Mounting volumes into the container is supported, although to do so the scheduler must be launched
-with `-allow_docker_mounts`.
 
   param          | type           | description
   -----          | :----:         | -----------
   ```image```    | String         | The name of the docker image to execute.  If the image does not exist locally it will be pulled with ```docker pull```.
   ```type```     | String         | The type of container, currently only "docker" is supported.
-  ```volumes```  | List of Volume | An optional list of ```Volume``` objects which describe the host and container mount points.
 
-### Volume Object
-
-Describes a mount point inside a docker container.  These parameters map closely to the arguments passed into [docker run](https://docs.docker.com/userguide/dockervolumes/#mount-a-host-directory-as-a-data-volume).
-The scheduler must be launched with `-allow_docker_mounts` in order for volumes to work.
-
-  param                | type    | description
-  -----                | :----:  | -----------
-  ```host_path```      | String  | The path on the host that will serve as the source for the mount.
-  ```container_path``` | String  | The path inside the container where the mount will be created.
-  ```mode```           | String  | The permissions the mount will have.  "RW" for read/write, "RO" for read-only.
 
 Job Schema
 ==========
