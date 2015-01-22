@@ -623,20 +623,11 @@ class TaskRunner(object):
         log.error('Unknown user %s.' % self._user)
         uid = None
 
-      # if running inside docker, the sandbox directory is relative to inside rather
-      # than outside the container.
-      host_log_dir = None
-      host_sandbox = None
-      if os.environ.get('MESOS_DIRECTORY'):
-        host_sandbox = os.environ.get('MESOS_DIRECTORY') + '/sandbox'
-        host_log_dir = host_sandbox + '/.logs'
-        log.info('Remapping log directory to MESOS_DIRECTORY = %s' % host_log_dir)
-
       header = RunnerHeader(
           task_id=self._task_id,
           launch_time_ms=int(self._launch_time * 1000),
-          sandbox=host_sandbox or self._sandbox,
-          log_dir=host_log_dir or self._log_dir,
+          sandbox=self._sandbox,
+          log_dir=self._log_dir,
           hostname=self._hostname,
           user=self._user,
           uid=uid,

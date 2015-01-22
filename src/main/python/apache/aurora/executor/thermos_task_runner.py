@@ -242,10 +242,14 @@ class ThermosTaskRunner(TaskRunner):
       log.error('Could not quitquitquit runner: %s' % e)
 
   def _cmdline(self):
+    host_sandbox = None
+    if os.environ.get('MESOS_DIRECTORY'):
+      host_sandbox = os.environ.get('MESOS_DIRECTORY') + '/sandbox'
+
     params = dict(log_dir=LogOptions.log_dir(),
                   log_to_disk='DEBUG',
                   checkpoint_root=self._checkpoint_root,
-                  sandbox=self._root,
+                  sandbox=host_sandbox or self._root,
                   task_id=self._task_id,
                   thermos_json=self._task_filename,
                   hostname=self._hostname)

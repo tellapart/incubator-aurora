@@ -127,10 +127,10 @@ def select_service_bit(job):
 def create_container_config(container):
   if container is Empty:
     return Container(MesosContainer(), None)
-  elif fully_interpolated(container.type()) == 'docker':
-    return Container(None, DockerContainer(fully_interpolated(container.image())))
+  elif container.docker() is not Empty:
+    return Container(None, DockerContainer(fully_interpolated(container.docker().image())))
   else:
-    raise InvalidConfig('Invalid container %s.' % container.type())
+    raise InvalidConfig('If a container is specified it must set one type.')
 
 
 # TODO(wickman): We should revert to using the MesosTaskInstance.

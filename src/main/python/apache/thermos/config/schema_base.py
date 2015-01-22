@@ -62,12 +62,12 @@ class Process(Struct):
                                            # that should always be run after regular processes
 
 
-class Container(Struct):
+class Docker(Struct):
   image = Required(String)
-  type = Default(String, "docker")
 
 
-Docker = Container(type="docker")
+class Container(Struct):
+  docker = Docker
 
 
 class Task(Struct):
