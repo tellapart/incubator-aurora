@@ -244,7 +244,7 @@ class ThermosTaskRunner(TaskRunner):
   def _cmdline(self):
     host_sandbox = None
     if os.environ.get('MESOS_DIRECTORY'):
-      host_sandbox = os.environ.get('MESOS_DIRECTORY') + '/sandbox'
+      host_sandbox = os.path.join(os.environ.get('MESOS_DIRECTORY'), 'sandbox')
 
     params = dict(log_dir=LogOptions.log_dir(),
                   log_to_disk='DEBUG',
@@ -275,8 +275,9 @@ class ThermosTaskRunner(TaskRunner):
     cmdline_args = self._cmdline()
     log.info('Forking off runner with cmdline: %s' % ' '.join(cmdline_args))
 
+    cwd = os.environ.get('MESOS_DIRECTORY')
     try:
-      self._popen = subprocess.Popen(cmdline_args)
+      self._popen = subprocess.Popen(cmdline_args, cwd=cwd)
     except OSError as e:
       raise TaskError(e)
 
@@ -374,7 +375,7 @@ class DefaultThermosTaskRunnerProvider(TaskRunnerProvider):
     self._task_runner_class = task_runner_class
 
   def _get_role(self, assigned_task):
-    return assigned_task.task.job.role if assigned_task.task.job else assigned_task.task.owner.role
+    return None if assigned_task.task.container.docker else assigned_task.task.job.role
 
   def from_assigned_task(self, assigned_task, sandbox):
     task_id = assigned_task.taskId

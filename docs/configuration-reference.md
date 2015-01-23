@@ -21,7 +21,6 @@ Aurora + Thermos Configuration Reference
       - [max_failures](#max_failures-1)
       - [max_concurrency](#max_concurrency)
       - [finalization_wait](#finalization_wait)
-      - [container](#container)
     - [Constraint Object](#constraint-object)
     - [Resource Object](#resource-object)
 - [Job Schema](#job-schema)
@@ -30,6 +29,7 @@ Aurora + Thermos Configuration Reference
     - [UpdateConfig Objects](#updateconfig-objects)
     - [HealthCheckConfig Objects](#healthcheckconfig-objects)
     - [Announcer Objects](#announcer-objects)
+    - [Container Objects](#container)
 - [Specifying Scheduling Constraints](#specifying-scheduling-constraints)
 - [Template Namespaces](#template-namespaces)
     - [mesos Namespace](#mesos-namespace)
@@ -162,7 +162,6 @@ can be omitted. In Mesos, `resources` is also required.
    ```max_failures```      | Integer                          | Maximum process failures before being considered failed (Default: 1)
    ```max_concurrency```   | Integer                          | Maximum number of concurrent processes (Default: 0, unlimited concurrency.)
    ```finalization_wait``` | Integer                          | Amount of time allocated for finalizing processes, in seconds. (Default: 30)
-   ```container```         | ```Container``` object           | An optional container to run the processes inside of.
 
 #### name
 `name` is a string denoting the name of this task. It defaults to the name of the first Process in
@@ -278,12 +277,6 @@ Client applications with higher priority may force a shorter
 finalization wait (e.g. through parameters to `thermos kill`), so this
 is mostly a best-effort signal.
 
-#### container
-
-`container` is an optional element which allows running the the processes specified
-inside a Docker container.  The ```Docker``` object is provided as shorthand for
-`Container(type="Docker")`
-
 ### Constraint Object
 
 Current constraint objects only support a single ordering constraint, `order`,
@@ -306,18 +299,6 @@ resources are allocated.
   ```cpu```  | Float   | Fractional number of cores required by the task.
   ```ram```  | Integer | Bytes of RAM required by the task.
   ```disk``` | Integer | Bytes of disk required by the task.
-
-### Container Object
-
-*Note: The only container type currently supported is "docker".  Docker support is currently EXPERIMENTAL.*
-*Note: In order to correctly execute processes inside a job, the Docker container must have python 2.7 installed.*
-
-Describes the container the job's processes will run inside.
-
-  param          | type           | description
-  -----          | :----:         | -----------
-  ```image```    | String         | The name of the docker image to execute.  If the image does not exist locally it will be pulled with ```docker pull```.
-  ```type```     | String         | The type of container, currently only "docker" is supported.
 
 
 Job Schema
@@ -343,6 +324,7 @@ Job Schema
   ```priority``` | Integer | Preemption priority to give the task (Default 0). Tasks with higher priorities may preempt tasks at lower priorities.
   ```production``` | Boolean |  Whether or not this is a production task backed by quota (Default: False). Production jobs may preempt any non-production job, and may only be preempted by production jobs in the same role and of higher priority. To run jobs at this level, the job role must have the appropriate quota.
   ```health_check_config``` | ```heath_check_config``` object | Parameters for controlling a task's health checks via HTTP. Only used if a  health port was assigned with a command line wildcard.
+  ```container``` | ```Container``` object | An optional container to run all processes inside of.
 
 ### Services
 
@@ -412,6 +394,24 @@ Static ports should be used cautiously as Aurora does nothing to prevent two
 tasks with the same static port allocations from being co-scheduled.
 External constraints such as slave attributes should be used to enforce such
 guarantees should they be needed.
+
+### Container Object
+
+*Note: The only container type currently supported is "docker".  Docker support is currently EXPERIMENTAL.*
+*Note: In order to correctly execute processes inside a job, the Docker container must have python 2.7 installed.*
+
+Describes the container the job's processes will run inside.
+
+  param          | type           | description
+  -----          | :----:         | -----------
+  ```docker```   | Docker         | A docker container to use.
+
+### Docker Object
+
+  param          | type           | description
+  -----          | :----:         | -----------
+  ```image```    | String         | The name of the docker image to execute.  If the image does not exist locally it will be pulled with ```docker pull```.
+
 
 Specifying Scheduling Constraints
 =================================

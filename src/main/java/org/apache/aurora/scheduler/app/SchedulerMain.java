@@ -125,7 +125,6 @@ public class SchedulerMain extends AbstractApplication {
       help = "The hostname to advertise in ZooKeeper instead of the locally-resolved hostname.")
   private static final Arg<String> HOSTNAME_OVERRIDE = Arg.create(null);
 
-
   @Inject private SingletonService schedulerService;
   @Inject private LocalServiceRegistryWithOverrides serviceRegistry;
   @Inject private SchedulerLifecycle schedulerLifecycle;

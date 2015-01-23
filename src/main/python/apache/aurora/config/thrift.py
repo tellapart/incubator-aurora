@@ -217,7 +217,7 @@ def convert(job, metadata=frozenset(), ports=frozenset()):
   task.requestedPorts = ports
   task.taskLinks = not_empty_or(job.task_links(), {})
   task.constraints = constraints_to_thrift(not_empty_or(job.constraints(), {}))
-  task.container = create_container_config(task_raw.container())
+  task.container = create_container_config(job.container())
 
   underlying, refs = job.interpolate()
 

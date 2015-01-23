@@ -70,8 +70,7 @@ public final class CommandUtil {
     return create(
         executorUri,
         executorResources,
-        Optional.<String>absent(),
-        Optional.<String>absent(),
+        "./",
         Optional.<String>absent()).build();
   }
 
@@ -81,28 +80,26 @@ public final class CommandUtil {
    *
    * @param executorUri A URI to the executor
    * @param executorResources A list of URIs to be fetched into the sandbox with the executor.
-   * @param commandPrefix An string to prefix the generated command with
-   * @param commandSuffix An string to suffix the generated command with
+   * @param commandBasePath The relative base path of the executor.
    * @param extraArguments Extra command line arguments to add to the generated command.
    * @return A CommandInfo.Builder populated with resources and a command.
    */
   public static CommandInfo.Builder create(
       String executorUri,
       List<String> executorResources,
-      Optional<String> commandPrefix,
-      Optional<String> commandSuffix,
+      String commandBasePath,
       Optional<String> extraArguments) {
 
     Preconditions.checkNotNull(executorResources);
     MorePreconditions.checkNotBlank(executorUri);
+    MorePreconditions.checkNotBlank(commandBasePath);
     CommandInfo.Builder builder = CommandInfo.newBuilder();
 
     builder.addAllUris(Iterables.transform(executorResources, STRING_TO_URI_RESOURCE));
     builder.addUris(STRING_TO_URI_RESOURCE.apply(executorUri));
 
-    String cmdLine = commandPrefix.or("")
-        + "./" + uriBasename(executorUri)
-        + commandSuffix.or("")
+    String cmdLine = commandBasePath
+        + uriBasename(executorUri)
         + " " + extraArguments.or("");
     return builder
         .setValue(cmdLine.trim())

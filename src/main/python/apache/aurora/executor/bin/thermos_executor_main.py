@@ -37,10 +37,12 @@ from apache.aurora.executor.thermos_task_runner import (
 )
 from apache.thermos.common.path import TaskPath
 
+CWD = os.environ.get('MESOS_SANDBOX', '.')
+
 app.configure(debug=True)
 LogOptions.set_simple(True)
 LogOptions.set_disk_log_level('DEBUG')
-LogOptions.set_log_dir('.')
+LogOptions.set_log_dir(CWD)
 
 
 app.add_option(
@@ -99,7 +101,7 @@ def dump_runner_pex():
   import pkg_resources
   import apache.aurora.executor.resources
   pex_name = 'thermos_runner.pex'
-  runner_pex = os.path.join(os.path.abspath('.'), pex_name)
+  runner_pex = os.path.join(os.path.abspath(CWD), pex_name)
   with open(runner_pex, 'w') as fp:
     # TODO(wickman) Use shutil.copyfileobj to reduce memory footprint here.
     fp.write(pkg_resources.resource_stream(
@@ -131,9 +133,10 @@ def proxy_main():
 
     # Create executor stub
     if options.execute_as_user or options.nosetuid:
+      # If nosetuid is set, execute_as_user is also None
       thermos_runner_provider = UserOverrideThermosTaskRunnerProvider(
         dump_runner_pex(),
-        artifact_dir=os.path.abspath('.')
+        artifact_dir=os.path.abspath(CWD)
       )
       thermos_runner_provider.set_role(None)
 
@@ -145,7 +148,7 @@ def proxy_main():
     else:
       thermos_runner_provider = DefaultThermosTaskRunnerProvider(
         dump_runner_pex(),
-        artifact_dir=os.path.abspath('.')
+        artifact_dir=os.path.abspath(CWD)
       )
 
       thermos_executor = AuroraExecutor(

@@ -142,19 +142,6 @@ public interface MesosTaskFactory {
     @VisibleForTesting
     static final String EXECUTOR_NAME = "aurora.task";
 
-    /**
-     * This script sets up a symlink inside the docker container to the same path
-     * as the sandbox outside the container.  This allows the executor /observer
-     * to see the same path inside and outside.  It also changes the working directory
-     * to the sandbox (which the executor expects).
-     */
-    private static final String DOCKER_COMMAND_PREFIX =
-        "mkdir -p `dirname $MESOS_DIRECTORY` && "
-      + "ln -s $MESOS_SANDBOX $MESOS_DIRECTORY && "
-      + "cd $MESOS_DIRECTORY && ";
-
-    private static final String DOCKER_COMMAND_SUFFIX = " --nosetuid";
-
     private final ExecutorSettings executorSettings;
 
     @Inject
@@ -269,8 +256,7 @@ public interface MesosTaskFactory {
       CommandInfo commandInfo = CommandUtil.create(
           executorSettings.getExecutorPath(),
           executorSettings.getExecutorResources(),
-          Optional.<String>absent(),
-          Optional.<String>absent(),
+          "./",
           executorSettings.getExecutorFlags()).build();
 
       ExecutorInfo.Builder executorBuilder = configureTaskForExecutor(task, config, commandInfo);
@@ -296,8 +282,7 @@ public interface MesosTaskFactory {
       CommandInfo.Builder commandInfoBuilder = CommandUtil.create(
           executorSettings.getExecutorPath(),
           executorSettings.getExecutorResources(),
-          Optional.of(DOCKER_COMMAND_PREFIX),
-          Optional.of(DOCKER_COMMAND_SUFFIX),
+          "$MESOS_SANDBOX/",
           executorSettings.getExecutorFlags());
 
       ExecutorInfo.Builder execBuilder =

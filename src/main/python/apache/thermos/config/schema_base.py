@@ -62,21 +62,12 @@ class Process(Struct):
                                            # that should always be run after regular processes
 
 
-class Docker(Struct):
-  image = Required(String)
-
-
-class Container(Struct):
-  docker = Docker
-
-
 class Task(Struct):
   name = Default(String, '{{processes[0].name}}')
   processes = List(Process)
 
   # optionals
   constraints = Default(List(Constraint), [])
-  container = Container
   resources = Resources
   max_failures = Default(Integer, 1)        # maximum number of failed processes before task is failed.
   max_concurrency = Default(Integer, 0)     # 0 is infinite concurrency.
