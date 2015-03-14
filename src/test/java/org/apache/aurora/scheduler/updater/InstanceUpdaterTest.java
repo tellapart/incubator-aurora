@@ -19,6 +19,7 @@ import com.twitter.common.quantity.Amount;
 import com.twitter.common.quantity.Time;
 import com.twitter.common.util.testing.FakeClock;
 
+import org.apache.aurora.gen.Identity;
 import org.apache.aurora.gen.ScheduleStatus;
 import org.apache.aurora.gen.ScheduledTask;
 import org.apache.aurora.gen.TaskConfig;
@@ -47,6 +48,8 @@ public class InstanceUpdaterTest {
 
   private static final ITaskConfig OLD = ITaskConfig.build(new TaskConfig().setNumCpus(1.0));
   private static final ITaskConfig NEW = ITaskConfig.build(new TaskConfig().setNumCpus(2.0));
+  private static final ITaskConfig NEW_DIFFERENT_OWNER = ITaskConfig.build(
+      new TaskConfig().setNumCpus(1.0).setOwner(new Identity("role", "user")));
 
   private static final Amount<Long, Time> MIN_RUNNING_TIME = Amount.of(1L, Time.MINUTES);
   private static final Amount<Long, Time> MAX_NON_RUNNING_TIME = Amount.of(5L, Time.MINUTES);
@@ -157,6 +160,15 @@ public class InstanceUpdaterTest {
   public void testNoopUpdate() {
     TestFixture f = new TestFixture(NEW, 1);
     f.setActualState(NEW);
+    f.evaluate(EVALUATE_AFTER_MIN_RUNNING_MS, RUNNING);
+    f.advanceTime(MIN_RUNNING_TIME);
+    f.evaluate(SUCCEEDED, RUNNING);
+  }
+
+  @Test
+  public void testUserChangeIsNoop() {
+    TestFixture f = new TestFixture(NEW_DIFFERENT_OWNER, 1);
+    f.setActualState(OLD);
     f.evaluate(EVALUATE_AFTER_MIN_RUNNING_MS, RUNNING);
     f.advanceTime(MIN_RUNNING_TIME);
     f.evaluate(SUCCEEDED, RUNNING);
