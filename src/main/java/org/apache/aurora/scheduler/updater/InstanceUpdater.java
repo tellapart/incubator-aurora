@@ -24,6 +24,7 @@ import com.twitter.common.quantity.Amount;
 import com.twitter.common.quantity.Time;
 import com.twitter.common.util.Clock;
 
+import org.apache.aurora.gen.Identity;
 import org.apache.aurora.gen.ScheduleStatus;
 import org.apache.aurora.scheduler.base.Tasks;
 import org.apache.aurora.scheduler.storage.entities.IScheduledTask;
@@ -138,12 +139,25 @@ class InstanceUpdater implements StateEvaluator<Optional<IScheduledTask>> {
     return observedFailures > toleratedFailures;
   }
 
+  private static ITaskConfig normalizeJobOwner(ITaskConfig taskConfig) {
+    return ITaskConfig.build(
+        taskConfig.newBuilder().setOwner(new Identity()));
+  }
+
+  private static boolean compareTaskConfigIgnoreOwner(ITaskConfig first, ITaskConfig second) {
+    requireNonNull(first);
+    requireNonNull(second);
+
+    return normalizeJobOwner(first).equals(normalizeJobOwner(second));
+  }
+
   private StateEvaluator.Result handleActualAndDesiredPresent(IScheduledTask actualState) {
     Preconditions.checkState(desiredState.isPresent());
     Preconditions.checkArgument(!actualState.getTaskEvents().isEmpty());
 
     ScheduleStatus status = actualState.getStatus();
-    if (desiredState.get().equals(actualState.getAssignedTask().getTask())) {
+    if (compareTaskConfigIgnoreOwner(
+        desiredState.get(), actualState.getAssignedTask().getTask())) {
       // The desired task is in the system.
       if (status == RUNNING) {
         // The desired task is running.
