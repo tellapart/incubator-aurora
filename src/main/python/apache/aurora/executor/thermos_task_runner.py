@@ -50,7 +50,6 @@ from gen.apache.thermos.ttypes import TaskState
 
 
 class ThermosTaskRunner(TaskRunner):
-  ESCALATION_WAIT = Amount(5, Time.SECONDS)
   EXIT_STATE_MAP = {
       TaskState.ACTIVE: StatusResult('Runner died while task was active.', mesos_pb2.TASK_LOST),
       TaskState.FAILED: StatusResult('Task failed.', mesos_pb2.TASK_FAILED),
@@ -117,6 +116,12 @@ class ThermosTaskRunner(TaskRunner):
     except ThermosTaskWrapper.InvalidTask as e:
       raise TaskError('Failed to load task: %s' % e)
 
+    # Only attempt to extract information after task validation.
+    self._quit_escalation_wait = Amount(
+        self._task.quit_escalation_wait().get(), Time.SECONDS)
+    self._abort_escalation_wait = Amount(
+      self._task.abort_escalation_wait().get(), Time.SECONDS)
+
   def _terminate_http(self):
     if 'health' not in self._ports:
       return
@@ -125,13 +130,13 @@ class ThermosTaskRunner(TaskRunner):
 
     # pass 1
     http_signaler.quitquitquit()
-    self._clock.sleep(self.ESCALATION_WAIT.as_(Time.SECONDS))
+    self._clock.sleep(self._quit_escalation_wait.as_(Time.SECONDS))
     if self.status is not None:
       return True
 
     # pass 2
     http_signaler.abortabortabort()
-    self._clock.sleep(self.ESCALATION_WAIT.as_(Time.SECONDS))
+    self._clock.sleep(self._abort_escalation_wait.as_(Time.SECONDS))
     if self.status is not None:
       return True
 
