@@ -173,7 +173,8 @@ def test_metadata_in_config():
 
 
 def test_task_instance_from_job():
-  instance = task_instance_from_job(Job(health_check_config=HealthCheckConfig(interval_secs=30)), 0)
+  instance = task_instance_from_job(
+      Job(health_check_config=HealthCheckConfig(interval_secs=30)), 0, '')
   assert instance is not None
 
 
