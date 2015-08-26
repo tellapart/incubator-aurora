@@ -27,7 +27,7 @@ class TaskObserverJSONBindings(object):
   @HttpServer.route("/j/task_ids/:which/:offset")
   @HttpServer.route("/j/task_ids/:which/:offset/:num")
   def handle_task_ids(self, which=None, offset=None, num=None):
-    return self._observer.task_ids(
+    return self._observer.main(
       which,
       int(offset) if offset is not None else 0,
       int(num) if num is not None else 20)
