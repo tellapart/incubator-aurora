@@ -189,6 +189,7 @@ public interface MesosTaskFactory {
 
       ExecutorInfo.Builder execBuilder = configureTaskForExecutor(task, taskConfig, acceptedOffer)
           .setContainer(containerBuilder.build());
+      execBuilder.getCommandBuilder().setUser(taskConfig.getJob().getRole());
 
       taskBuilder.setExecutor(execBuilder.build());
     }
