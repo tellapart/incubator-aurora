@@ -16,6 +16,7 @@ import getpass
 import grp
 import os
 import pwd
+import subprocess
 from abc import abstractmethod, abstractproperty
 
 from twitter.common import log
@@ -60,10 +61,19 @@ class SandboxProvider(Interface):
 
 class DefaultSandboxProvider(SandboxProvider):
   SANDBOX_NAME = 'sandbox'
+  MESOS_COMMAND_UID_ENV_VARIABLE = 'MESOS_COMMAND_UID'
 
   def from_assigned_task(self, assigned_task):
     if assigned_task.task.container.docker:
-      return DockerDirectorySandbox(self.SANDBOX_NAME)
+      uid = os.environ.get(self.MESOS_COMMAND_UID_ENV_VARIABLE, None)
+      user = None
+      if uid:
+        uid = uid.strip()
+        user = self._get_sandbox_user(assigned_task)
+      return DockerDirectorySandbox(
+        self.SANDBOX_NAME,
+        user,
+        uid)
     else:
       return DirectorySandbox(
         os.path.abspath(self.SANDBOX_NAME),
@@ -125,10 +135,13 @@ class DockerDirectorySandbox(DirectorySandbox):
   MESOS_DIRECTORY_ENV_VARIABLE = 'MESOS_DIRECTORY'
   MESOS_SANDBOX_ENV_VARIABLE = 'MESOS_SANDBOX'
 
-  def __init__(self, sandbox_name):
+  def __init__(self, sandbox_name, user, uid):
     self._mesos_host_sandbox = os.environ[self.MESOS_DIRECTORY_ENV_VARIABLE]
     self._root = os.path.join(self._mesos_host_sandbox, sandbox_name)
-    super(DockerDirectorySandbox, self).__init__(self._root, user=None)
+    self._uid = uid
+    super(DockerDirectorySandbox, self).__init__(
+      self._root,
+      user=user or getpass.getuser())
 
   def _create_symlinks(self):
     # This sets up the docker container to have a similar directory structure to the host.
@@ -137,7 +150,6 @@ class DockerDirectorySandbox(DirectorySandbox):
     #   - Creates mesos_host_sandbox_root (recursively)
     #   - Symlinks _mesos_host_sandbox -> $MESOS_SANDBOX (typically /mnt/mesos/sandbox)
     # $MESOS_SANDBOX is provided in the environment by the Mesos docker containerizer.
-
     mesos_host_sandbox_root = os.path.dirname(self._mesos_host_sandbox)
     try:
       safe_mkdir(mesos_host_sandbox_root)
@@ -145,6 +157,26 @@ class DockerDirectorySandbox(DirectorySandbox):
     except (IOError, OSError) as e:
       raise self.CreationError('Failed to create the sandbox root: %s' % e)
 
+  def _try_create_user(self):
+    if self._uid:
+      home_dir = os.environ[self.MESOS_SANDBOX_ENV_VARIABLE]
+      cmd = "useradd -d %s -l -m -u %s %s" % (
+        home_dir,
+        self._uid,
+        self._user)
+      log.info("Executing '%s'" % cmd)
+      try:
+        subprocess.check_output(
+          ['useradd', '-d', home_dir, '-l', '-m', '-u', self._uid, self._user],
+          stderr=subprocess.STDOUT)
+      except subprocess.CalledProcessError as e:
+        raise self.CreationError('Failed to create user %s, '
+                                 'useradd exited with code %s.  %s' % (
+          self._user, e.returncode, e.output))
+    else:
+      log.debug('No UID found in environment, not creating new user.')
+
   def create(self):
     self._create_symlinks()
+    self._try_create_user()
     super(DockerDirectorySandbox, self).create()

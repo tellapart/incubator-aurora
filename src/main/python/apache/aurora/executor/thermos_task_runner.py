@@ -15,6 +15,7 @@
 import errno
 import getpass
 import os
+import pwd
 import signal
 import socket
 import struct
@@ -381,7 +382,16 @@ class DefaultThermosTaskRunnerProvider(TaskRunnerProvider):
     self._rotate_log_backups = rotate_log_backups
 
   def _get_role(self, assigned_task):
-    return None if assigned_task.task.container.docker else assigned_task.task.job.role
+    role = assigned_task.task.job.role
+    if assigned_task.task.container.docker:
+      try:
+        # Test if the user exists, in docker it may or may not have been created.
+        pwd.getpwnam(role)
+        return role
+      except KeyError:
+        return None
+    else:
+      return role
 
   def from_assigned_task(self, assigned_task, sandbox):
     task_id = assigned_task.taskId
