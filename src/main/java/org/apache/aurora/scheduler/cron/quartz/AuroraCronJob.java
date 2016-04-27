@@ -30,6 +30,7 @@ import org.apache.aurora.scheduler.base.JobKeys;
 import org.apache.aurora.scheduler.base.Query;
 import org.apache.aurora.scheduler.base.Tasks;
 import org.apache.aurora.scheduler.configuration.ConfigurationManager;
+import org.apache.aurora.scheduler.configuration.SanitizedConfiguration;
 import org.apache.aurora.scheduler.cron.CronException;
 import org.apache.aurora.scheduler.cron.SanitizedCronJob;
 import org.apache.aurora.scheduler.state.StateManager;
@@ -129,8 +130,8 @@ class AuroraCronJob implements Job {
 
           SanitizedCronJob cronJob;
           try {
-            cronJob = SanitizedCronJob.fromUnsanitized(configurationManager, config.get());
-          } catch (ConfigurationManager.TaskDescriptionException | CronException e) {
+            cronJob = SanitizedCronJob.from(new SanitizedConfiguration(config.get()));
+          } catch (CronException e) {
             LOG.warn(
                 "Invalid cron job for {} in storage - failed to parse with {}", key, e);
             CRON_JOB_PARSE_FAILURES.incrementAndGet();

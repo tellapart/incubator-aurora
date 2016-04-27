@@ -22,6 +22,7 @@ import com.google.common.util.concurrent.AbstractIdleService;
 
 import org.apache.aurora.common.stats.Stats;
 import org.apache.aurora.scheduler.configuration.ConfigurationManager;
+import org.apache.aurora.scheduler.configuration.SanitizedConfiguration;
 import org.apache.aurora.scheduler.cron.CronException;
 import org.apache.aurora.scheduler.cron.SanitizedCronJob;
 import org.apache.aurora.scheduler.storage.Storage;
@@ -69,11 +70,11 @@ class CronLifecycle extends AbstractIdleService {
 
     for (IJobConfiguration job : Storage.Util.fetchCronJobs(storage)) {
       try {
-        SanitizedCronJob cronJob = SanitizedCronJob.fromUnsanitized(configurationManager, job);
+        SanitizedCronJob cronJob = SanitizedCronJob.from(new SanitizedConfiguration(job));
         cronJobManager.scheduleJob(
             cronJob.getCrontabEntry(),
             cronJob.getSanitizedConfig().getJobConfig().getKey());
-      } catch (CronException | ConfigurationManager.TaskDescriptionException e) {
+      } catch (CronException e) {
         logLaunchFailure(job, e);
       }
     }
