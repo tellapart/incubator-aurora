@@ -211,6 +211,7 @@ public interface MesosTaskFactory {
               .setContainer(getDockerContainerInfo(
                   dockerContainer,
                   Optional.of(getExecutorName(task))));
+          execBuilder.getCommandBuilder().setUser(config.getJob().getRole());
           taskBuilder.setExecutor(execBuilder.build());
         } else {
           LOG.warn("Running Docker-based task without an executor.");

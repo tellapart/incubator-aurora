@@ -73,13 +73,24 @@ class SandboxProvider(Interface):
 class DefaultSandboxProvider(SandboxProvider):
   SANDBOX_NAME = 'sandbox'
   MESOS_DIRECTORY_ENV_VARIABLE = 'MESOS_DIRECTORY'
+  MESOS_COMMAND_UID_ENV_VARIABLE = 'MESOS_COMMAND_UID'
 
   def from_assigned_task(self, assigned_task, **kwargs):
     sandbox_root = os.path.join(os.environ[self.MESOS_DIRECTORY_ENV_VARIABLE], self.SANDBOX_NAME)
 
     container = assigned_task.task.container
     if container.docker:
-      return DockerDirectorySandbox(sandbox_root, **kwargs)
+      kwargs.pop('user', None)
+      uid = os.environ.get(self.MESOS_COMMAND_UID_ENV_VARIABLE, None)
+      user = None
+      if uid:
+        uid = uid.strip()
+        user = self._get_sandbox_user(assigned_task)
+      return DockerDirectorySandbox(
+          sandbox_root,
+          user=user,
+          uid=uid,
+          **kwargs)
     elif container.mesos and container.mesos.image:
       return FileSystemImageSandbox(
           sandbox_root,
@@ -154,13 +165,10 @@ class DirectorySandbox(SandboxInterface):
 class DockerDirectorySandbox(DirectorySandbox):
   """ A sandbox implementation that configures the sandbox correctly for docker containers. """
 
-  def __init__(self, root, **kwargs):
+  def __init__(self, root, user, uid, **kwargs):
     self._mesos_host_sandbox = os.environ[DefaultSandboxProvider.MESOS_DIRECTORY_ENV_VARIABLE]
-
-    # remove the user value from kwargs if it was set.
-    kwargs.pop('user', None)
-
-    super(DockerDirectorySandbox, self).__init__(root, user=None, **kwargs)
+    self._uid = uid
+    super(DockerDirectorySandbox, self).__init__(root, user=user, **kwargs)
 
   def _create_symlinks(self):
     # This sets up the container to have a similar directory structure to the host.
@@ -177,8 +185,28 @@ class DockerDirectorySandbox(DirectorySandbox):
     except (IOError, OSError) as e:
       raise self.CreationError('Failed to create the sandbox root: %s' % e)
 
+  def _try_create_user(self):
+    if self._uid:
+      home_dir = os.environ[DefaultSandboxProvider.MESOS_DIRECTORY_ENV_VARIABLE]
+      cmd = "useradd -d %s -l -m -u %s %s" % (
+        home_dir,
+        self._uid,
+        self._user)
+      log.info("Executing '%s'" % cmd)
+      try:
+        subprocess.check_output(
+          ['useradd', '-d', home_dir, '-l', '-m', '-u', self._uid, self._user],
+          stderr=subprocess.STDOUT)
+      except subprocess.CalledProcessError as e:
+        raise self.CreationError('Failed to create user %s, '
+                                 'useradd exited with code %s.  %s' % (
+                                   self._user, e.returncode, e.output))
+    else:
+      log.debug('No UID found in environment, not creating new user.')
+
   def create(self):
     self._create_symlinks()
+    self._try_create_user()
     super(DockerDirectorySandbox, self).create()
 
 

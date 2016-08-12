@@ -173,7 +173,7 @@ class AuroraCronJob implements Job, EventSubscriber {
       SanitizedCronJob cronJob;
       try {
         cronJob = SanitizedCronJob.from(new SanitizedConfiguration(config.get()));
-      } catch (ConfigurationManager.TaskDescriptionException | CronException e) {
+      } catch (CronException e) {
         LOG.warn("Invalid cron job for {} in storage - failed to parse with {}", key, e);
         CRON_JOB_PARSE_FAILURES.incrementAndGet();
         return BatchWorker.NO_RESULT;
